@@ -1,0 +1,13 @@
+{
+  "name": "easex",
+  "private": true,
+  "workspaces": [
+    "web",
+    "mobile",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=packages/shared",
+    "postinstall": "npm run build:shared"
+  }
+}

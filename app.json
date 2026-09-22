@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4691e07c-082e-406a-a288-6ae2598bce24"
+      }
+    },
+    "android": {
+      "package": "com.mohammedawal.easex"
+    }
+  }
+}
