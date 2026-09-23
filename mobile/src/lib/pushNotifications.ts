@@ -5,6 +5,8 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { easex } from "./easexClient";
+import { useAuth } from "../context/AuthContext";
+import { resolveNotificationTarget } from "./notificationLink";
 
 // Foreground behavior: still show an alert/sound even while the app
 // is open, so a settlement or KYC decision doesn't go unnoticed just
@@ -118,20 +120,41 @@ export async function clearPushTokenOnLogout() {
 }
 
 /**
- * Mount once near the app root. Handles the case where the user
- * taps a push notification (app was backgrounded or closed) by
- * navigating to that notification's detail screen — the same place
- * tapping it in-app goes.
+ * Mount once near the app root. Handles the case where the user taps a
+ * push notification (app was backgrounded or closed) by navigating
+ * straight to what it's about — the same place tapping it in-app goes.
+ * related_type/related_id ride along in the push payload itself (see
+ * apps/notifications/tasks.py) specifically so this can redirect
+ * immediately, without an extra fetch, on a cold tap.
  */
 export function useNotificationTapNavigation() {
   const router = useRouter();
+  const { user } = useAuth();
   const subscriptionRef = useRef<Notifications.EventSubscription | null>(null);
+  // The listener closure below is set up once (empty tap-time deps would
+  // go stale), so route it through a ref rather than re-subscribing on
+  // every user change — re-subscribing would risk missing a tap that
+  // lands in the gap between unsubscribe and resubscribe.
+  const userRef = useRef(user);
+  userRef.current = user;
 
   useEffect(() => {
     subscriptionRef.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      const notificationId = response.notification.request.content.data?.notification_id as string | undefined;
+      const data = response.notification.request.content.data;
+      const notificationId = data?.notification_id as string | undefined;
+      const relatedType = (data?.related_type as string | undefined) || "";
+      const relatedId = (data?.related_id as string | undefined) || "";
+
+      const target = resolveNotificationTarget(
+        { related_type: relatedType, related_id: relatedId } as never,
+        !!userRef.current?.is_staff
+      );
+      if (target) {
+        router.dismissTo(target as never);
+        return;
+      }
       if (notificationId) {
-        router.replace(`/notification/${notificationId}`);
+        router.dismissTo(`/notification/${notificationId}`);
       }
     });
     return () => {

@@ -8,10 +8,11 @@ import {
   ScrollView,
   Image,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
+  useWindowDimensions,
 } from "react-native";
-import * as DocumentPicker from "expo-document-picker";
+import { pickMedia } from "../lib/pickMedia";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RNFilePart, SupportSession } from "@easex/shared";
 import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../lib/easexClient";
@@ -21,7 +22,7 @@ import { colors, fonts } from "../theme";
 
 const STATUS_LABEL: Record<string, string> = {
   bot_active: "EaseX Assistant",
-  escalated: "Connecting you to an agent…",
+  escalated: "An Agent will be with you shortly",
   admin_active: "Agent",
   resolved: "Closed",
 };
@@ -71,14 +72,23 @@ function TypingDots() {
  * the unused top-level App.tsx) so it persists across every route,
  * signed in or not.
  *
- * Attachments use expo-document-picker, which opens the system file
- * browser (Files on iOS — itself offering Photos, iCloud Drive, and
- * other apps as sources — and the equivalent on Android) rather than
- * jumping straight into the photo gallery, so any file type the user
- * picks (image, video, PDF) works the same way.
+ * Attachments go through ../lib/pickMedia, which offers a real choice of
+ * source (Photo/Video Library, Take Photo/Video, Browse Files) via the
+ * native action sheet, rather than jumping straight into any one of them.
  */
 export default function FloatingSupportWidget() {
   const { user } = useAuth();
+  const keyboardHeight = useKeyboardHeight();
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // Normally 72% of the screen; when the keyboard is up, shrink to
+  // whatever fits above it (never below 280px) rather than just
+  // shifting the same fixed height up, which could push the sheet's
+  // own top off-screen on shorter devices or with a tall keyboard.
+  const baseSheetHeight = windowHeight * 0.72;
+  const topClearance = insets.top + 20;
+  const sheetHeight =
+    keyboardHeight > 0 ? Math.min(baseSheetHeight, Math.max(280, windowHeight - keyboardHeight - topClearance)) : baseSheetHeight;
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<PanelView>("chat");
   const [session, setSession] = useState<SupportSession | null>(null);
@@ -158,18 +168,8 @@ export default function FloatingSupportWidget() {
   };
 
   const pickAttachment = async () => {
-    // DocumentPicker opens the system file browser (Files on iOS, which
-    // itself offers Photos, iCloud Drive, and other apps as sources; the
-    // equivalent picker on Android) — the user chooses where to pick
-    // from, rather than being dropped straight into the photo gallery.
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ["image/*", "video/*", "application/pdf"],
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    setPendingFile({ uri: asset.uri, name: asset.name || "attachment", type: asset.mimeType || "application/octet-stream" });
+    const files = await pickMedia(false);
+    if (files?.[0]) setPendingFile(files[0]);
   };
 
   const send = async () => {
@@ -236,14 +236,19 @@ export default function FloatingSupportWidget() {
 
   return (
     <>
-      <TouchableOpacity style={styles.bubble} onPress={() => setOpen(true)} accessibilityLabel="Open EaseX Assistant" activeOpacity={0.85}>
+      <TouchableOpacity
+        style={[styles.bubble, { bottom: 20 + insets.bottom }]}
+        onPress={() => setOpen(true)}
+        accessibilityLabel="Open EaseX Assistant"
+        activeOpacity={0.85}
+      >
         <Text style={styles.bubbleIcon}>💬</Text>
         {unread && <View style={styles.badge} />}
       </TouchableOpacity>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.sheet}>
+          <View style={[styles.sheet, { height: sheetHeight, marginBottom: keyboardHeight }]}>
             <View style={styles.header}>
               <View>
                 <Text style={styles.headerTitle}>
@@ -326,12 +331,12 @@ export default function FloatingSupportWidget() {
 
                 {session && session.status === "bot_active" && (
                   <TouchableOpacity style={styles.humanBtn} onPress={talkToHuman} disabled={sending}>
-                    <Text style={styles.humanBtnText}>Talk to a person instead</Text>
+                    <Text style={styles.humanBtnText}>Speak to an Agent.</Text>
                   </TouchableOpacity>
                 )}
 
                 {session && (
-                  <View style={styles.inputArea}>
+                  <View style={[styles.inputArea, { paddingBottom: 12 + (keyboardHeight > 0 ? 0 : insets.bottom) }]}>
                     {pendingFile && (
                       <View style={styles.pendingRow}>
                         <Text style={styles.pendingText} numberOfLines={1}>
@@ -367,7 +372,7 @@ export default function FloatingSupportWidget() {
                 )}
               </>
             )}
-          </KeyboardAvoidingView>
+          </View>
         </View>
       </Modal>
     </>
@@ -406,7 +411,6 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.3)" },
   sheet: {
-    height: "72%",
     backgroundColor: colors.paperRaised,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,

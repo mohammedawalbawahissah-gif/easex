@@ -48,6 +48,8 @@ def send_push_notification(self, notification_id):
                 "data": {
                     "notification_id": str(notification.id),
                     "category": notification.category,
+                    "related_type": notification.related_type,
+                    "related_id": notification.related_id,
                 },
                 "sound": "default",
             }

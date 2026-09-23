@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ScrollView, StyleSheet, TextInput } from "react-native";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 import type { AdminGiftCardSubmission } from "@easex/shared";
 import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
@@ -36,6 +37,7 @@ function autoPaymentSummary(s: AdminGiftCardSubmission): string | null {
 }
 
 export default function AdminGiftCardQueueScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const [submissions, setSubmissions] = useState<AdminGiftCardSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("under_review");
@@ -123,7 +125,7 @@ export default function AdminGiftCardQueueScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <FilterChips options={FILTERS} value={statusFilter} onChange={setStatusFilter} />
 
       {autoOn !== null && (

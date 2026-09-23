@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import type { Notification } from "@easex/shared";
 import { easex } from "../lib/easexClient";
 import { colors, fonts } from "../theme";
+import { useAuth } from "../context/AuthContext";
+import { resolveNotificationTarget } from "../lib/notificationLink";
 
 const CATEGORY_LABELS: Record<string, string> = {
   transaction_update: "Transaction update",
@@ -17,6 +19,8 @@ function formatDateTime(iso: string) {
 
 export default function NotificationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { user } = useAuth();
   const [notification, setNotification] = useState<Notification | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +32,15 @@ export default function NotificationDetailScreen() {
       .get(id)
       .then((n) => {
         if (cancelled) return;
+        // Fallback deep-link: the in-app tap and push-tap paths both
+        // redirect before ever reaching this screen, but if anything
+        // else lands here with a linked notification, don't show a
+        // generic detail page for something that has a real place to go.
+        const target = resolveNotificationTarget(n, !!user?.is_staff);
+        if (target) {
+          router.dismissTo(target as never);
+          return;
+        }
         setNotification(n);
         if (!n.is_read) easex.notifications.markRead(id).catch(() => {});
       })
@@ -40,10 +53,17 @@ export default function NotificationDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, router, user]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <Text
+        style={styles.backLink}
+        onPress={() => (router.canGoBack() ? router.back() : router.dismissTo("/(tabs)"))}
+      >
+        {"‹ Back"}
+      </Text>
+
       {loading ? (
         <Text style={styles.muted}>Loading…</Text>
       ) : error || !notification ? (
@@ -77,6 +97,7 @@ export default function NotificationDetailScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   container: { padding: 24, paddingBottom: 48 },
+  backLink: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.gold, marginBottom: 16 },
   muted: { fontFamily: fonts.bodyRegular, color: colors.inkSoft },
   error: { fontFamily: fonts.bodyRegular, color: colors.danger },
   title: { fontFamily: fonts.displaySemiBold, fontSize: 20, color: colors.ink, marginBottom: 4 },

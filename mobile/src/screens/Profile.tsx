@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 import { useRouter } from "expo-router";import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { changePasswordSchema, type ChangePasswordFormValues, apiErrorMessage } from "@easex/shared";
@@ -30,6 +31,7 @@ const TIER_STATUS_KEY: Record<string, string> = {
 };
 
 export default function ProfileScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const { user, logout, adoptTokens } = useAuth();
   const { status: security } = useSecurityStatus();
   const [otp, setOtp] = useState("");
@@ -75,7 +77,7 @@ export default function ProfileScreen() {
   const tierSc = statusColors[TIER_STATUS_KEY[user.kyc_tier]] ?? { bg: colors.line, fg: colors.inkSoft };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Account</Text>
 
       <Text style={styles.sectionTitle}>Security</Text>
@@ -87,7 +89,7 @@ export default function ProfileScreen() {
         <Text style={styles.rowTitle}>Two-factor authentication</Text>
         <Text style={styles.rowMeta}>{security ? (security.totp_enabled ? "On" : "Off") : "…"}</Text>
       </View>
-      <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.indigo, marginVertical: 12 }} onPress={() => router.replace("/(tabs)/security")}>
+      <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.indigo, marginVertical: 12 }} onPress={() => router.dismissTo("/(tabs)/security")}>
         Manage PIN and two-factor authentication →
       </Text>
 
@@ -116,13 +118,13 @@ export default function ProfileScreen() {
       </View>
 
       {user.kyc_tier !== "full" && (
-        <TouchableOpacity style={styles.verifyButton} onPress={() => router.replace("/(tabs)/verification")}>
+        <TouchableOpacity style={styles.verifyButton} onPress={() => router.dismissTo("/(tabs)/verification")}>
           <Text style={styles.verifyButtonText}>Verify your account</Text>
         </TouchableOpacity>
       )}
 
       {user.is_staff && (
-        <TouchableOpacity style={styles.adminButton} onPress={() => router.replace("/admin")}>
+        <TouchableOpacity style={styles.adminButton} onPress={() => router.dismissTo("/admin")}>
           <Text style={styles.adminButtonText}>Admin portal</Text>
         </TouchableOpacity>
       )}

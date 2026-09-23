@@ -181,8 +181,11 @@ def _audit(actor, action: str, target_model: str, target_id, **details):
     )
 
 
-def _notify(user, title: str, body: str, category=Notification.Category.SYSTEM):
-    Notification.objects.create(user=user, category=category, title=title, body=body)
+def _notify(user, title: str, body: str, category=Notification.Category.SYSTEM, *, related_type: str = "", related_id: str = ""):
+    Notification.objects.create(
+        user=user, category=category, title=title, body=body,
+        related_type=related_type, related_id=related_id,
+    )
 
 
 def _dispatch_withdrawal(txn_id):
@@ -578,6 +581,7 @@ def add_destination(*, user, network: str, account_number: str, account_name: st
         "Payout account added",
         f"{MOBILE_MONEY_NETWORKS[network]} ••••{number[-4:]} was added to your account. "
         "If this wasn't you, change your password and contact support.",
+        related_type="payouts",
     )
     return dest
 
@@ -623,6 +627,7 @@ def set_auto_payout(*, user, enabled: bool, destination_id=None) -> PayoutPrefer
             else "Approved gift card sales will stay in your wallet until you withdraw them."
         )
         + " If you didn't do this, change your password and contact support.",
+        related_type="payouts",
     )
     return pref
 
@@ -875,6 +880,7 @@ def _fail_scheduled(st: ScheduledTransfer, reason: str):
         f"Your scheduled transfer of {st.amount.normalize():f} {st.currency} to @{st.recipient.username} "
         f"couldn't be sent: {reason}",
         Notification.Category.TRANSACTION_UPDATE,
+        related_type="scheduled",
     )
 
 
@@ -1004,6 +1010,7 @@ def _fail_scheduled_load(sl: ScheduledLoad, reason: str):
         "Scheduled wallet load didn't go through",
         f"Your scheduled load of {sl.amount.normalize():f} GHS couldn't be started: {reason}",
         Notification.Category.TRANSACTION_UPDATE,
+        related_type="scheduled",
     )
 
 
@@ -1186,6 +1193,7 @@ def _fail_scheduled_withdrawal(sw: ScheduledWithdrawal, reason: str):
         "Scheduled withdrawal didn't go through",
         f"Your scheduled withdrawal of {sw.amount.normalize():f} {sw.currency} couldn't be sent: {reason}",
         Notification.Category.TRANSACTION_UPDATE,
+        related_type="scheduled",
     )
 
 

@@ -57,7 +57,10 @@ def _audit(user, action, **details):
 
 
 def _notify(user, title, body):
-    Notification.objects.create(user=user, category=Notification.Category.SYSTEM, title=title, body=body)
+    Notification.objects.create(
+        user=user, category=Notification.Category.SYSTEM, title=title, body=body,
+        related_type="security",
+    )
 
 
 # ---------------------------------------------------------------------------

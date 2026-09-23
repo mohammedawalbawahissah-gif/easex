@@ -74,9 +74,11 @@ export function adminEndpoints(client: ApiClient) {
     },
 
     support: {
-      /** Defaults to the "waiting for an agent" queue — same default as the queue page itself. */
-      list: (status?: SupportSessionStatus | "") =>
+      /** Defaults to the "waiting for an agent" queue — same default as the queue page itself. Pass "all" for every status. */
+      list: (status?: SupportSessionStatus | "all") =>
         client.get<AdminSupportSession[]>(`/api/admin/support/${qs({ status })}`),
+      /** A single session by id, regardless of its status — used to deep-link straight from an escalation notification. */
+      get: (id: string) => client.get<AdminSupportSession>(`/api/admin/support/${id}/`),
       claim: (id: string) => client.post<AdminSupportSession>(`/api/admin/support/${id}/claim/`, {}),
       sendMessage: (id: string, body: string) =>
         client.post<AdminSupportSession>(`/api/admin/support/${id}/message/`, { body }),

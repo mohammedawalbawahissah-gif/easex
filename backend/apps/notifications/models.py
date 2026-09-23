@@ -22,6 +22,14 @@ class Notification(models.Model):
     category = models.CharField(max_length=30, choices=Category.choices)
     title = models.CharField(max_length=150)
     body = models.TextField(blank=True)
+    # Generic reference to what this notification is ABOUT, letting a
+    # frontend deep-link straight to the relevant screen instead of just
+    # showing static text — e.g. related_type="support_session",
+    # related_id=<session id> for an escalation notification, so tapping
+    # it can go straight to that conversation. Both blank for the (still
+    # most common) case of a notification with nothing to link to.
+    related_type = models.CharField(max_length=30, blank=True)
+    related_id = models.CharField(max_length=64, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -3,14 +3,16 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Modal, FlatList, Pressable } from "react-native";
 import type { TextInputProps } from "react-native";
 import { colors, fonts } from "../theme";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 
 /** Small form kit for the money screens — same palette/type as the rest of the app. */
 
 export function Screen({ children }: { children: ReactNode }) {
+  const keyboardHeight = useKeyboardHeight();
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.paper }}
-      contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
+      contentContainerStyle={{ padding: 24, paddingBottom: 48 + keyboardHeight }}
       keyboardShouldPersistTaps="handled"
     >
       {children}

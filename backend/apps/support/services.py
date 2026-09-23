@@ -161,13 +161,36 @@ def escalate(session_id, *, actor=None, reason: str, notes: str = "") -> Support
         session.status = SupportSession.Status.ESCALATED
         session.escalation_reason = reason
         session.escalation_notes = notes
-        session.save(update_fields=["status", "escalation_reason", "escalation_notes", "updated_at"])
+        session.escalated_at = timezone.now()
+        session.save(
+            update_fields=["status", "escalation_reason", "escalation_notes", "escalated_at", "updated_at"]
+        )
         _audit(actor, "support_escalated", session, reason=reason, notes=notes)
 
     from .tasks import notify_admins_of_escalation
 
     notify_admins_of_escalation.delay(str(session.pk))
     return session
+
+
+def revert_to_bot(session_id) -> SupportSession | None:
+    """
+    Falls a session back to the assistant after it's sat unclaimed too
+    long — see tasks.revert_stale_escalations, which is the only caller.
+    Re-checks status under lock (not just escalated_at) so a session an
+    admin claimed in the gap between the task's query and this call isn't
+    yanked back — that race is exactly why this re-verifies rather than
+    trusting the caller's snapshot.
+    """
+    with transaction.atomic():
+        session = _lock(session_id)
+        if session.status != SupportSession.Status.ESCALATED:
+            return None  # claimed, resolved, or already reverted since the task queried — nothing to do
+        session.status = SupportSession.Status.BOT_ACTIVE
+        session.escalated_at = None
+        session.save(update_fields=["status", "escalated_at", "updated_at"])
+        _audit(None, "support_auto_reverted_to_bot", session)
+        return session
 
 
 def claim(session_id, *, actor) -> SupportSession:
@@ -177,7 +200,8 @@ def claim(session_id, *, actor) -> SupportSession:
             raise SupportError("Only a session that's waiting for an agent can be claimed.")
         session.status = SupportSession.Status.ADMIN_ACTIVE
         session.assigned_admin = actor
-        session.save(update_fields=["status", "assigned_admin", "updated_at"])
+        session.escalated_at = None
+        session.save(update_fields=["status", "assigned_admin", "escalated_at", "updated_at"])
         _audit(actor, "support_claimed", session)
         return session
 

@@ -5,8 +5,8 @@ from .models import Notification, PushDeviceToken, WebPushSubscription
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
-        fields = ["id", "category", "title", "body", "is_read", "created_at"]
-        read_only_fields = ["id", "category", "title", "body", "created_at"]
+        fields = ["id", "category", "title", "body", "related_type", "related_id", "is_read", "created_at"]
+        read_only_fields = ["id", "category", "title", "body", "related_type", "related_id", "created_at"]
 
 
 class PushDeviceTokenSerializer(serializers.ModelSerializer):

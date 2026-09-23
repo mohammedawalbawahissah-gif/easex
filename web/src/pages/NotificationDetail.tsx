@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import type { Notification } from "@easex/shared";
 import { easex } from "../lib/easexClient";
 import AppShell from "../components/AppShell";
+import { useAuth } from "../context/AuthContext";
+import { resolveNotificationPath } from "../lib/notificationLink";
 
 const CATEGORY_LABELS: Record<string, string> = {
   transaction_update: "Transaction update",
@@ -16,6 +18,8 @@ function formatDateTime(iso: string) {
 
 export default function NotificationDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [notification, setNotification] = useState<Notification | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +31,15 @@ export default function NotificationDetail() {
       .get(id)
       .then((n) => {
         if (cancelled) return;
+        // Fallback deep-link: the bell dropdown and full list both
+        // redirect before ever reaching this page, but if anything else
+        // lands here with a linked notification, send it somewhere real
+        // instead of showing a generic detail page.
+        const target = resolveNotificationPath(n, !!user?.is_staff);
+        if (target) {
+          navigate(target, { replace: true });
+          return;
+        }
         setNotification(n);
         if (!n.is_read) easex.notifications.markRead(id).catch(() => {});
       })
@@ -39,7 +52,7 @@ export default function NotificationDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, navigate, user]);
 
   return (
     <AppShell>

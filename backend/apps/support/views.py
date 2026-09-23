@@ -135,7 +135,7 @@ class AdminSupportSessionViewSet(viewsets.ReadOnlyModelViewSet):
         # this was a real bug before this fix, not a hypothetical one.
         if self.action == "list":
             status_filter = self.request.query_params.get("status", SupportSession.Status.ESCALATED)
-            if status_filter:
+            if status_filter and status_filter != "all":
                 qs = qs.filter(status=status_filter)
         return qs
 

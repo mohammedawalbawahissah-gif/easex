@@ -246,6 +246,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.payments.tasks.dispatch_stuck_withdrawals",
         "schedule": 180.0,
     },
+    "revert-stale-support-escalations": {
+        "task": "apps.support.tasks.revert_stale_escalations",
+        "schedule": 60.0,
+    },
 }
 
 # --- Payments ---------------------------------------------------------------

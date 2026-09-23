@@ -60,6 +60,7 @@ def apply_review_decision(sender, instance, created, **kwargs):
             category=Notification.Category.KYC_UPDATE,
             title="Verification submission rejected",
             body=instance.rejection_reason or "Please review and resubmit your details.",
+            related_type="verification",
         )
         AuditLog.objects.create(
             actor=instance.reviewed_by,

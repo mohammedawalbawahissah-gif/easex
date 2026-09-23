@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 import type { AdminUser } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
 import { colors, fonts } from "../../theme";
@@ -13,6 +14,7 @@ const TIER_FILTERS = [
 ];
 
 export default function AdminUsersScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -48,7 +50,7 @@ export default function AdminUsersScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <TextInput
         style={styles.searchInput}
         placeholder="Search username, email, phone…"

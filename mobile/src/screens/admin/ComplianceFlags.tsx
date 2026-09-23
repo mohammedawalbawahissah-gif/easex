@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 import type { ComplianceFlag } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
 import { colors, fonts } from "../../theme";
@@ -15,6 +16,7 @@ const FILTERS = [
 ];
 
 export default function AdminComplianceFlagsScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const [flags, setFlags] = useState<ComplianceFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("open");
@@ -47,7 +49,7 @@ export default function AdminComplianceFlagsScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <FilterChips options={FILTERS} value={statusFilter} onChange={setStatusFilter} />
 
       {error && <Text style={styles.error}>{error}</Text>}

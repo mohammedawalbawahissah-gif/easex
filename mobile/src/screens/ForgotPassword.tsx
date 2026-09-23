@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { passwordResetRequestSchema, type PasswordResetRequestFormValues } from "@easex/shared";
 import { useRouter } from "expo-router";
 import { easex } from "../lib/easexClient";
 import { colors, fonts } from "../theme";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
 
   const {
     control,
@@ -25,7 +29,7 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>
         Ease<Text style={{ color: colors.gold }}>X</Text>
       </Text>
@@ -65,7 +69,7 @@ export default function ForgotPasswordScreen() {
       <TouchableOpacity onPress={() => router.push("/login")}>
         <Text style={styles.link}>Back to log in</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 

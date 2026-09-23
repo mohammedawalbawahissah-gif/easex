@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import type { CopilotMessage } from "@easex/shared";
 import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
 import { colors, fonts } from "../../theme";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 
 export default function AdminCopilotScreen() {
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const keyboardHeight = useKeyboardHeight();
 
   const ask = async () => {
     if (!text.trim() || busy) return;
@@ -29,11 +31,7 @@ export default function AdminCopilotScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
+    <View style={styles.screen}>
       <Text style={styles.hint}>
         Ask about flags, transactions, or the review queues. Read-only — it can't approve, reject, or change
         anything, and nothing here is saved once you leave the screen.
@@ -53,7 +51,7 @@ export default function AdminCopilotScreen() {
         )}
       </ScrollView>
 
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, { marginBottom: keyboardHeight }]}>
         <TextInput
           style={styles.input}
           value={text}
@@ -67,7 +65,7 @@ export default function AdminCopilotScreen() {
           <Text style={styles.sendBtnText}>Ask</Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

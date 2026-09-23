@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterFormValues, ApiError } from "@easex/shared";
@@ -9,6 +11,8 @@ import { colors, fonts } from "../theme";
 import PasswordField from "../components/PasswordField";
 
 export default function RegisterScreen() {
+  const keyboardHeight = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
   const { register: doRegister } = useAuth();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -46,7 +50,7 @@ export default function RegisterScreen() {
   ];
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>
         Ease<Text style={{ color: colors.gold }}>X</Text>
       </Text>

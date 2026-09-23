@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 import { useRouter } from "expo-router";
 import type { ExchangeRate, ExchangeRateHistoryPoint, TradableCurrency, TradeDirection } from "@easex/shared";
 import { ApiError } from "@easex/shared";
@@ -28,6 +29,7 @@ function percentChange(history: ExchangeRateHistoryPoint[], currency: TradableCu
 }
 
 export default function TradeScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const router = useRouter();
   const [rates, setRates] = useState<ExchangeRate[]>([]);
   const [rateHistory, setRateHistory] = useState<ExchangeRateHistoryPoint[]>([]);
@@ -102,7 +104,7 @@ export default function TradeScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Trade crypto</Text>
       <Text style={styles.subtitle}>Updated automatically as the market moves.</Text>
 

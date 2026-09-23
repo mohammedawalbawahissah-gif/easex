@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import type { Notification } from "@easex/shared";
 import { easex } from "../lib/easexClient";
 import AppShell from "../components/AppShell";
+import { useAuth } from "../context/AuthContext";
+import { resolveNotificationPath } from "../lib/notificationLink";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -16,6 +18,7 @@ function timeAgo(iso: string) {
 
 export default function Notifications() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +36,8 @@ export default function Notifications() {
         setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: false } : x)));
       });
     }
-    navigate(`/notifications/${n.id}`);
+    const target = resolveNotificationPath(n, !!user?.is_staff);
+    navigate(target ?? `/notifications/${n.id}`);
   };
 
   return (

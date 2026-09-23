@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Pressable } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, usePathname } from "expo-router";
 import { colors, fonts } from "../theme";
 import { useAuth } from "../context/AuthContext";
@@ -28,6 +29,7 @@ export function AdminDrawerButton() {
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuth();
+  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -39,7 +41,7 @@ export function AdminDrawerButton() {
 
       <Modal visible={open} animationType="fade" transparent onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.panel} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={[styles.panel, { paddingTop: insets.top + 16 }]} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.panelTitle}>Admin</Text>
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.to || (item.to !== "/admin" && pathname?.startsWith(item.to));
@@ -89,7 +91,6 @@ const styles = StyleSheet.create({
   panel: {
     width: 250,
     backgroundColor: colors.paperRaised,
-    paddingTop: 60,
     paddingHorizontal: 12,
     height: "100%",
   },

@@ -41,4 +41,5 @@ def notify_on_full_verification(sender, instance, created, **kwargs):
         category=Notification.Category.KYC_UPDATE,
         title="Verification complete",
         body="Your account is now fully verified. Your transaction limit is 50,000 GHS.",
+        related_type="verification",
     )

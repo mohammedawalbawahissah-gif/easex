@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, ScrollView, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, ScrollView } from "react-native";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 import { useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
+import { pickMedia } from "../lib/pickMedia";
 import {
   submitGiftCardSchema,
   type SubmitGiftCardFormValues,
@@ -31,6 +31,7 @@ import { Dropdown, Message } from "../components/ui";
 const money = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function GiftCardsScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const router = useRouter();
   const [brands, setBrands] = useState<GiftCardBrand[]>([]);
   const [catalogState, setCatalogState] = useState<"loading" | "ready" | "error">("loading");
@@ -118,48 +119,13 @@ export default function GiftCardsScreen() {
   };
 
   const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Photo access needed", "Allow photo library access in Settings to attach a card image.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-      allowsEditing: false,
-    });
-
-    if (result.canceled || !result.assets?.[0]) return;
-
-    const asset = result.assets[0];
-    // React Native's fetch/FormData expects this {uri, name, type} shape
-    // for file uploads — there's no real File/Blob object on-device.
-    setCardImage({
-      uri: asset.uri,
-      name: asset.fileName ?? `card-${Date.now()}.jpg`,
-      type: asset.mimeType ?? "image/jpeg",
-    });
+    const files = await pickMedia(false);
+    if (files?.[0]) setCardImage(files[0]);
   };
 
   const pickExtraFiles = async () => {
-    // DocumentPicker opens the system file browser — Files on iOS (which
-    // itself offers Photos, iCloud Drive, and other apps as sources) and
-    // the equivalent on Android — rather than jumping straight into the
-    // photo gallery, and it can pick a PDF here too, unlike the image
-    // picker used above for the card photo.
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ["image/*", "video/*", "application/pdf"],
-      copyToCacheDirectory: true,
-      multiple: true,
-    });
-    if (result.canceled || !result.assets?.length) return;
-    const picked: RNFilePart[] = result.assets.map((asset) => ({
-      uri: asset.uri,
-      name: asset.name || "attachment",
-      type: asset.mimeType || "application/octet-stream",
-    }));
-    setExtraFiles((files) => [...files, ...picked].slice(0, 6));
+    const files = await pickMedia(true);
+    if (files?.length) setExtraFiles((existing) => [...existing, ...files].slice(0, 6));
   };
 
   const removeExtraFile = (index: number) => {
@@ -188,7 +154,7 @@ export default function GiftCardsScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Sell a gift card</Text>
       <Text style={styles.subtitle}>
         Pick the card, then the exact type. Approved earnings go to your wallet — or straight to mobile money with{" "}

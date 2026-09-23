@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Transaction } from "@easex/shared";
 import { TRANSACTION_TYPE_LABELS as TYPE_LABELS } from "@easex/shared";
 import { formatMoney } from "../lib/money";
@@ -48,6 +49,7 @@ function formatDateTime(iso: string) {
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,8 +74,8 @@ export default function TransactionDetailScreen() {
   }, [id]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <TouchableOpacity onPress={() => router.back()}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingTop: insets.top + 16 }]}>
+      <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.dismissTo("/(tabs)"))}>
         <Text style={styles.back}>← Back</Text>
       </TouchableOpacity>
 

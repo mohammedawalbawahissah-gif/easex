@@ -4,6 +4,8 @@ import { useRouter } from "expo-router";
 import type { Notification } from "@easex/shared";
 import { easex } from "../lib/easexClient";
 import { colors, fonts } from "../theme";
+import { useAuth } from "../context/AuthContext";
+import { resolveNotificationTarget } from "../lib/notificationLink";
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -17,6 +19,7 @@ function timeAgo(iso: string) {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +37,8 @@ export default function NotificationsScreen() {
         setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: false } : x)));
       });
     }
-    router.replace(`/notification/${n.id}`);
+    const target = resolveNotificationTarget(n, !!user?.is_staff);
+    router.dismissTo((target ?? `/notification/${n.id}`) as never);
   };
 
   return (

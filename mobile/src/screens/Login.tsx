@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginFormValues, ApiError, apiErrorMessage } from "@easex/shared";
@@ -7,6 +7,8 @@ import { useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { colors, fonts } from "../theme";
 import PasswordField from "../components/PasswordField";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { login, completeMfaLogin } = useAuth();
@@ -16,6 +18,8 @@ export default function LoginScreen() {
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [mfaBusy, setMfaBusy] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
+  const insets = useSafeAreaInsets();
 
   const {
     control,
@@ -61,7 +65,7 @@ export default function LoginScreen() {
 
   if (mfaToken) {
     return (
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
         <Text style={styles.brand}>Ease<Text style={{ color: colors.gold }}>X</Text></Text>
         <Text style={styles.title}>Two-factor code</Text>
         <Text style={[styles.label, { marginBottom: 12 }]}>
@@ -75,12 +79,12 @@ export default function LoginScreen() {
         <TouchableOpacity onPress={() => { setMfaToken(null); setCode(""); setServerError(null); }}>
           <Text style={styles.link}>Back</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.brand}>
         Ease<Text style={{ color: colors.gold }}>X</Text>
       </Text>
@@ -119,7 +123,7 @@ export default function LoginScreen() {
       <TouchableOpacity onPress={() => router.push("/register")}>
         <Text style={styles.link}>Don't have an account? Sign up</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet, Alert } from "react-native";
+import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as ImagePicker from "expo-image-picker";
@@ -74,6 +75,7 @@ function ImagePickField({
 }
 
 export default function VerificationScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<KYCSubmission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,7 +139,7 @@ export default function VerificationScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Verify your account</Text>
       <Text style={styles.subtitle}>Full verification raises your transaction limit to 50,000 GHS.</Text>
 

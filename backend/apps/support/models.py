@@ -57,6 +57,12 @@ class SupportSession(models.Model):
         max_length=30, choices=EscalationReason.choices, blank=True
     )
     escalation_notes = models.TextField(blank=True)
+    # Set only when transitioning INTO escalated (never touched by claim/
+    # resolve), so it's a reliable "how long has this been waiting,
+    # unclaimed" clock — unlike updated_at, which claim() also bumps.
+    # Used by tasks.revert_stale_escalations to auto-fall-back to the
+    # assistant if no one claims it in time.
+    escalated_at = models.DateTimeField(null=True, blank=True)
 
     assigned_admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,

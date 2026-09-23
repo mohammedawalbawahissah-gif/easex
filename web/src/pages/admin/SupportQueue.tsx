@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { AdminSupportSession, SupportSessionStatus } from "@easex/shared";
 import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
@@ -11,18 +12,27 @@ const REASON_LABELS: Record<string, string> = {
   manual: "Escalated by staff",
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  bot_active: "With the assistant",
+  escalated: "Waiting for an agent",
+  admin_active: "Being handled",
+  resolved: "Resolved",
+};
+
 export default function AdminSupportQueue() {
+  const [searchParams] = useSearchParams();
   const [sessions, setSessions] = useState<AdminSupportSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<SupportSessionStatus | "">("escalated");
+  const [statusFilter, setStatusFilter] = useState<SupportSessionStatus | "all">("escalated");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [deepLinkedSession, setDeepLinkedSession] = useState<AdminSupportSession | null>(null);
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     easex.admin.support
-      .list(statusFilter || undefined)
+      .list(statusFilter)
       .then(setSessions)
       .catch(() => setError("Couldn't load the queue."))
       .finally(() => setLoading(false));
@@ -38,7 +48,22 @@ export default function AdminSupportQueue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  const open = sessions.find((s) => s.id === openId) ?? null;
+  // Deep link from an escalation notification (?session=<id>) — the
+  // target session might not be "escalated" (an admin may have already
+  // claimed it) and so might not be in the currently filtered list, so
+  // this fetches it directly by id rather than relying on `sessions`.
+  useEffect(() => {
+    const sessionId = searchParams.get("session");
+    if (!sessionId) return;
+    setOpenId(sessionId);
+    easex.admin.support
+      .get(sessionId)
+      .then(setDeepLinkedSession)
+      .catch(() => setError("Couldn't load that conversation."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const open = sessions.find((s) => s.id === openId) ?? (deepLinkedSession?.id === openId ? deepLinkedSession : null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "nearest" });
@@ -48,8 +73,9 @@ export default function AdminSupportQueue() {
     setBusyId(id);
     setError(null);
     try {
-      await easex.admin.support.claim(id);
+      const updated = await easex.admin.support.claim(id);
       setOpenId(id);
+      if (deepLinkedSession?.id === id) setDeepLinkedSession(updated);
       load();
     } catch (err) {
       setError(apiErrorMessage(err, "Couldn't claim this session."));
@@ -63,8 +89,9 @@ export default function AdminSupportQueue() {
     setBusyId(open.id);
     setError(null);
     try {
-      await easex.admin.support.sendMessage(open.id, reply.trim());
+      const updated = await easex.admin.support.sendMessage(open.id, reply.trim());
       setReply("");
+      if (deepLinkedSession?.id === open.id) setDeepLinkedSession(updated);
       load();
     } catch (err) {
       setError(apiErrorMessage(err, "Message didn't send — try again."));
@@ -80,6 +107,7 @@ export default function AdminSupportQueue() {
     try {
       await easex.admin.support.resolve(open.id);
       setOpenId(null);
+      setDeepLinkedSession(null);
       load();
     } catch (err) {
       setError(apiErrorMessage(err, "Couldn't resolve this session."));
@@ -94,14 +122,14 @@ export default function AdminSupportQueue() {
         <h1 style={{ fontSize: 22 }}>Support</h1>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as SupportSessionStatus | "")}
+          onChange={(e) => setStatusFilter(e.target.value as SupportSessionStatus | "all")}
           className="admin-select"
         >
           <option value="escalated">Waiting for an agent</option>
           <option value="admin_active">Being handled</option>
           <option value="bot_active">With the assistant</option>
           <option value="resolved">Resolved</option>
-          <option value="">All</option>
+          <option value="all">All</option>
         </select>
       </div>
 
@@ -129,7 +157,12 @@ export default function AdminSupportQueue() {
                       {s.escalation_reason ? ` · ${REASON_LABELS[s.escalation_reason] ?? s.escalation_reason}` : ""}
                     </span>
                   </div>
-                  <span className="admin-review-sub">{s.assigned_admin_username ?? "Unclaimed"}</span>
+                  <div style={{ textAlign: "right" }}>
+                    <span className="admin-review-sub" style={{ display: "block" }}>
+                      {STATUS_BADGE[s.status] ?? s.status}
+                    </span>
+                    <span className="admin-review-sub">{s.assigned_admin_username ?? "Unclaimed"}</span>
+                  </div>
                 </div>
                 {s.status === "escalated" && (
                   <button

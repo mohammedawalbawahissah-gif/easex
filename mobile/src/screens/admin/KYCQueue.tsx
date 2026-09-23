@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, StyleSheet } from "react-native";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 import type { AdminKYCSubmission } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
 import { colors, fonts } from "../../theme";
@@ -15,6 +16,7 @@ const FILTERS = [
 ];
 
 export default function AdminKYCQueueScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const [submissions, setSubmissions] = useState<AdminKYCSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("pending");
@@ -63,7 +65,7 @@ export default function AdminKYCQueueScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <FilterChips options={FILTERS} value={statusFilter} onChange={setStatusFilter} />
 
       {error && <Text style={styles.error}>{error}</Text>}

@@ -17,6 +17,14 @@ RESTRICTED_KEYWORDS = (
     "hacked", "hack", "appeal", "lawyer", "lawsuit", "sue", "police",
 )
 
+# How long a session can sit escalated with no one claiming it before it
+# falls back to the assistant. Deliberately scoped to "unclaimed" only —
+# once an admin claims it (admin_active), the human is engaged and this
+# task no longer touches it, even if they're slow to actually type a
+# reply. Auto-reclaiming a session an admin is already working on would
+# be a worse experience than a slow reply.
+STALE_ESCALATION_MINUTES = 5
+
 
 @shared_task
 def notify_admins_of_escalation(session_id):
@@ -56,6 +64,8 @@ def notify_admins_of_escalation(session_id):
             category=Notification.Category.SYSTEM,
             title="Customer waiting for an agent",
             body=f"{who} needs help with {subject}.",
+            related_type="support_session",
+            related_id=str(session.pk),
         )
         created += 1
     logger.debug("Notified %d staff of escalated session %s", created, session_id)
@@ -87,6 +97,8 @@ def notify_user_of_reply(session_id):
         category=Notification.Category.SYSTEM,
         title="New message from support",
         body=preview[:120],
+        related_type="support_session",
+        related_id=str(session.pk),
     )
 
 
@@ -186,3 +198,44 @@ def generate_assistant_reply(self, session_id):
 
     if result.reply_text:
         services.post_assistant_message(session_id, body=result.reply_text)
+
+
+@shared_task
+def revert_stale_escalations():
+    """
+    Periodic task (see CELERY_BEAT_SCHEDULE) — finds sessions that have
+    sat in `escalated` with no one claiming them for longer than
+    STALE_ESCALATION_MINUTES, and falls each one back to the assistant
+    rather than leaving the user staring at "An agent will be with you
+    shortly" indefinitely.
+
+    Queries on escalated_at specifically (not updated_at, which claim()
+    also touches) so a session that WAS claimed and later got reassigned
+    or reopened doesn't get caught by a stale timestamp from its first
+    escalation.
+    """
+    from django.utils import timezone
+
+    from .models import SupportSession
+    from . import services
+
+    cutoff = timezone.now() - timezone.timedelta(minutes=STALE_ESCALATION_MINUTES)
+    stale_ids = list(
+        SupportSession.objects.filter(
+            status=SupportSession.Status.ESCALATED, escalated_at__lte=cutoff
+        ).values_list("pk", flat=True)
+    )
+
+    reverted = 0
+    for session_id in stale_ids:
+        session = services.revert_to_bot(str(session_id))
+        if session is None:
+            continue  # claimed/resolved in the gap between the query above and this call — leave it
+        services.post_assistant_message(
+            str(session_id),
+            body="No agent was available just now — I'm back to help. You can ask to speak to a person again anytime.",
+        )
+        reverted += 1
+
+    if reverted:
+        logger.info("Reverted %d stale escalation(s) back to the assistant", reverted)

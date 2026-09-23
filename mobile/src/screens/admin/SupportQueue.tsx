@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import type { AdminSupportSession, SupportSessionStatus } from "@easex/shared";
 import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
 import { colors, fonts } from "../../theme";
 import FilterChips from "../../components/FilterChips";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 
 const FILTERS = [
   { value: "escalated", label: "Waiting" },
   { value: "admin_active", label: "Handled" },
   { value: "bot_active", label: "Assistant" },
   { value: "resolved", label: "Resolved" },
-  { value: "", label: "All" },
+  { value: "all", label: "All" },
 ];
 
 const REASON_LABELS: Record<string, string> = {
@@ -21,6 +23,13 @@ const REASON_LABELS: Record<string, string> = {
   manual: "Escalated by staff",
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  bot_active: "With the assistant",
+  escalated: "Waiting for an agent",
+  admin_active: "Being handled",
+  resolved: "Resolved",
+};
+
 /**
  * Web shows list + detail side by side; on a phone that doesn't fit, so
  * this is a single screen that toggles between the list and an open
@@ -28,18 +37,21 @@ const REASON_LABELS: Record<string, string> = {
  * actions, laid out for one column instead of two.
  */
 export default function AdminSupportQueueScreen() {
+  const { session: deepLinkSessionId } = useLocalSearchParams<{ session?: string }>();
   const [sessions, setSessions] = useState<AdminSupportSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<SupportSessionStatus | "">("escalated");
+  const [statusFilter, setStatusFilter] = useState<SupportSessionStatus | "all">("escalated");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [deepLinkedSession, setDeepLinkedSession] = useState<AdminSupportSession | null>(null);
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const keyboardHeight = useKeyboardHeight();
 
   const load = useCallback(() => {
     easex.admin.support
-      .list(statusFilter || undefined)
+      .list(statusFilter)
       .then(setSessions)
       .catch(() => setError("Couldn't load the queue."))
       .finally(() => setLoading(false));
@@ -52,7 +64,19 @@ export default function AdminSupportQueueScreen() {
     return () => clearInterval(interval);
   }, [load]);
 
-  const open = sessions.find((s) => s.id === openId) ?? null;
+  // Deep link from an escalation notification tap — the target session
+  // might already be claimed (not in the default "escalated" filter), so
+  // this fetches it directly by id rather than relying on the list.
+  useEffect(() => {
+    if (!deepLinkSessionId) return;
+    setOpenId(deepLinkSessionId);
+    easex.admin.support
+      .get(deepLinkSessionId)
+      .then(setDeepLinkedSession)
+      .catch(() => setError("Couldn't load that conversation."));
+  }, [deepLinkSessionId]);
+
+  const open = sessions.find((s) => s.id === openId) ?? (deepLinkedSession?.id === openId ? deepLinkedSession : null);
 
   useEffect(() => {
     if (open) requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -62,8 +86,9 @@ export default function AdminSupportQueueScreen() {
     setBusyId(id);
     setError(null);
     try {
-      await easex.admin.support.claim(id);
+      const updated = await easex.admin.support.claim(id);
       setOpenId(id);
+      if (deepLinkedSession?.id === id) setDeepLinkedSession(updated);
       load();
     } catch (err) {
       setError(apiErrorMessage(err, "Couldn't claim this session."));
@@ -77,8 +102,9 @@ export default function AdminSupportQueueScreen() {
     setBusyId(open.id);
     setError(null);
     try {
-      await easex.admin.support.sendMessage(open.id, reply.trim());
+      const updated = await easex.admin.support.sendMessage(open.id, reply.trim());
       setReply("");
+      if (deepLinkedSession?.id === open.id) setDeepLinkedSession(updated);
       load();
     } catch (err) {
       setError(apiErrorMessage(err, "Message didn't send — try again."));
@@ -94,6 +120,7 @@ export default function AdminSupportQueueScreen() {
     try {
       await easex.admin.support.resolve(open.id);
       setOpenId(null);
+      setDeepLinkedSession(null);
       load();
     } catch (err) {
       setError(apiErrorMessage(err, "Couldn't resolve this session."));
@@ -104,11 +131,7 @@ export default function AdminSupportQueueScreen() {
 
   if (open) {
     return (
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-      >
+      <View style={styles.screen}>
         <View style={styles.detailHeader}>
           <TouchableOpacity onPress={() => setOpenId(null)}>
             <Text style={styles.backText}>‹ Back</Text>
@@ -131,7 +154,7 @@ export default function AdminSupportQueueScreen() {
         </ScrollView>
 
         {open.status === "admin_active" ? (
-          <View style={styles.replyRow}>
+          <View style={[styles.replyRow, { marginBottom: keyboardHeight }]}>
             <TextInput
               style={styles.replyInput}
               value={reply}
@@ -152,13 +175,13 @@ export default function AdminSupportQueueScreen() {
             {open.status === "escalated" ? "Claim this session to reply." : "This session isn't with an agent."}
           </Text>
         )}
-      </KeyboardAvoidingView>
+      </View>
     );
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <FilterChips options={FILTERS} value={statusFilter} onChange={(v) => setStatusFilter(v as SupportSessionStatus | "")} />
+      <FilterChips options={FILTERS} value={statusFilter} onChange={(v) => setStatusFilter(v as SupportSessionStatus | "all")} />
 
       {error && <Text style={styles.error}>{error}</Text>}
 
@@ -177,7 +200,10 @@ export default function AdminSupportQueueScreen() {
                   {s.escalation_reason ? ` · ${REASON_LABELS[s.escalation_reason] ?? s.escalation_reason}` : ""}
                 </Text>
               </View>
-              <Text style={styles.cardMeta}>{s.assigned_admin_username ?? "Unclaimed"}</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.cardMeta}>{STATUS_BADGE[s.status] ?? s.status}</Text>
+                <Text style={styles.cardMeta}>{s.assigned_admin_username ?? "Unclaimed"}</Text>
+              </View>
             </View>
             {s.status === "escalated" && (
               <TouchableOpacity

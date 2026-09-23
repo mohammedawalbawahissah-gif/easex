@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from "react-native";
+import { useKeyboardHeight } from "../../lib/useKeyboardHeight";
 import type { AdminTransaction, TransactionStatus } from "@easex/shared";
 import { TRANSACTION_TYPE_LABELS, apiErrorMessage } from "@easex/shared";
 import { easex } from "../../lib/easexClient";
@@ -45,6 +46,7 @@ function detailsOf(t: AdminTransaction): string | null {
 }
 
 export default function AdminTransactionLedgerScreen() {
+  const keyboardHeight = useKeyboardHeight();
   const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "">("verified");
@@ -81,7 +83,7 @@ export default function AdminTransactionLedgerScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
       <FilterChips options={TYPE_FILTERS} value={typeFilter} onChange={setTypeFilter} />
       <FilterChips options={STATUS_FILTERS} value={statusFilter} onChange={(v) => setStatusFilter(v as TransactionStatus | "")} />
 

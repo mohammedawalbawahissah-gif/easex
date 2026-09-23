@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate } from "react-router-dom";
 import type { Notification } from "@easex/shared";
 import { useAuth } from "../context/AuthContext";
 import { easex } from "../lib/easexClient";
+import { resolveNotificationPath } from "../lib/notificationLink";
 
 const TIER_LABELS: Record<string, string> = {
   unverified: "Unverified",
@@ -96,7 +97,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
       easex.notifications.markRead(n.id).catch(() => {});
     }
-    navigate(`/notifications/${n.id}`);
+    const target = resolveNotificationPath(n, !!user?.is_staff);
+    navigate(target ?? `/notifications/${n.id}`);
   };
 
   return (

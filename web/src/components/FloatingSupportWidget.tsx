@@ -34,7 +34,7 @@ function useVisibleHeight() {
 
 const STATUS_LABEL: Record<string, string> = {
   bot_active: "EaseX Assistant",
-  escalated: "Connecting you to an agent…",
+  escalated: "An Agent will be with you shortly",
   admin_active: "Agent",
   resolved: "Closed",
 };
@@ -459,7 +459,7 @@ export default function FloatingSupportWidget() {
                   disabled={sending}
                   onClick={talkToHuman}
                 >
-                  Talk to a person instead
+                  Speak to an Agent.
                 </button>
               )}
 
