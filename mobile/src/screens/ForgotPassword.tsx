@@ -6,6 +6,7 @@ import { passwordResetRequestSchema, type PasswordResetRequestFormValues } from 
 import { useRouter } from "expo-router";
 import { easex } from "../lib/easexClient";
 import { colors, fonts } from "../theme";
+import BrandLockup from "../components/BrandLockup";
 import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -30,9 +31,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
-      <Text style={styles.brand}>
-        Ease<Text style={{ color: colors.gold }}>X</Text>
-      </Text>
+      <BrandLockup />
 
       {submitted ? (
         <Text style={styles.body}>
@@ -75,7 +74,6 @@ export default function ForgotPasswordScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 28, justifyContent: "center", backgroundColor: colors.paper },
-  brand: { fontFamily: fonts.displayBold, fontSize: 20, color: colors.ink, marginBottom: 32 },
   title: { fontFamily: fonts.displaySemiBold, fontSize: 22, color: colors.ink },
   subtitle: { fontFamily: fonts.bodyRegular, fontSize: 14, color: colors.inkSoft, marginTop: 4, marginBottom: 20 },
   body: { fontFamily: fonts.bodyRegular, fontSize: 15, color: colors.ink, lineHeight: 22 },

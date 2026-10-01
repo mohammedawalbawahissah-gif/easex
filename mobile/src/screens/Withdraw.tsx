@@ -152,14 +152,17 @@ export default function WithdrawScreen() {
       {isFiat ? (
         destinations.length === 0 ? (
           <View style={{ marginVertical: 16 }}>
-            <Hint>You haven't saved a mobile money account yet.</Hint>
+            <Hint>You haven't saved a payout account yet.</Hint>
             <SecondaryButton title="Add a payout account" onPress={() => router.push("/(tabs)/payouts")} />
           </View>
         ) : (
           <View style={{ marginTop: 16 }}>
             <Choice
               label="Send to"
-              options={destinations.map((d) => ({ value: d.id, label: `${d.network.toUpperCase()} · ${d.account_number}` }))}
+              options={destinations.map((d) => ({
+                value: d.id,
+                label: `${d.kind === "bank" ? d.bank_name : (config?.mobile_money_networks.find((n) => n.value === d.network)?.label ?? d.network)} · ${d.account_number}`,
+              }))}
               value={destinationId}
               onChange={setDestinationId}
             />

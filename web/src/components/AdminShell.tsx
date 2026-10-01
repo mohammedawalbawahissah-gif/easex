@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import AppIcon from "./AppIcon";
 
 const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard", end: true },
@@ -43,7 +44,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
       <aside className={sidebarOpen ? "admin-sidebar admin-sidebar-open" : "admin-sidebar"}>
         <div className="admin-brand">
-          Ease<span className="brand-gold">X</span> <span className="admin-brand-tag">Staff</span>
+          <AppIcon size={32} />
+          <span>
+            Ease<span className="brand-gold">X</span>
+          </span>
+          <span className="admin-brand-tag">Staff</span>
         </div>
         <nav className="admin-nav">
           {NAV_ITEMS.map((item) => (

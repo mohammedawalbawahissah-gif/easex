@@ -57,7 +57,7 @@ export default function AddMoney() {
         const txn = await easex.payments.load({
           amount: amount.trim(),
           network,
-          phone_number: phone.trim(),
+          ...(network !== "bank" ? { phone_number: phone.trim() } : {}),
           idempotency_key: key.current,
         });
         setResult(txn);
@@ -78,6 +78,11 @@ export default function AddMoney() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const switchMode = (m: "now" | "later") => {
+    setMode(m);
+    if (m === "later" && network === "bank") setNetwork("mtn"); // scheduled loads are mobile-money only
   };
 
   const showAddress = async () => {
@@ -147,8 +152,8 @@ export default function AddMoney() {
         ) : (
           <form className="auth-form" onSubmit={submitMomo} noValidate>
             <div className="seg" role="group" aria-label="When to load">
-              <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")}>Add now</button>
-              <button type="button" aria-pressed={mode === "later"} onClick={() => setMode("later")}>Schedule</button>
+              <button type="button" aria-pressed={mode === "now"} onClick={() => switchMode("now")}>Add now</button>
+              <button type="button" aria-pressed={mode === "later"} onClick={() => switchMode("later")}>Schedule</button>
             </div>
 
             <div className="field">
@@ -157,15 +162,24 @@ export default function AddMoney() {
             </div>
             {config && <p className="hint">You can add up to {formatMoney(config.loads_remaining_ghs, "GHS")} in the next 24 hours.</p>}
             <div className="field">
-              <label htmlFor="network">Network</label>
+              <label htmlFor="network">Payment method</label>
               <select id="network" value={network} onChange={(e) => setNetwork(e.target.value)}>
-                {(config?.mobile_money_networks ?? []).map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
+                {(mode === "now" ? config?.payment_methods : config?.mobile_money_networks)?.map((n) => (
+                  <option key={n.value} value={n.value}>{n.label}</option>
+                ))}
               </select>
             </div>
-            <div className="field">
-              <label htmlFor="phone">Mobile money number</label>
-              <input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="024 123 4567" />
-            </div>
+            {network === "bank" ? (
+              <p className="hint">
+                We'll show you EaseX's account details and a reference after you continue — your balance
+                updates once we match your transfer.
+              </p>
+            ) : (
+              <div className="field">
+                <label htmlFor="phone">Mobile money number</label>
+                <input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="024 123 4567" />
+              </div>
+            )}
 
             {mode === "later" && (
               <>
@@ -184,7 +198,10 @@ export default function AddMoney() {
             )}
 
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="btn-primary" disabled={busy || !amount || !phone || (config ? !config.loads_enabled : false)}>
+            <button
+              className="btn-primary"
+              disabled={busy || !amount || (network !== "bank" && !phone) || (config ? !config.loads_enabled : false)}
+            >
               {busy ? "Working…" : mode === "now" ? "Continue" : "Schedule load"}
             </button>
           </form>

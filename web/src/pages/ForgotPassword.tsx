@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { passwordResetRequestSchema, type PasswordResetRequestFormValues } from "@easex/shared";
 import { Link } from "react-router-dom";
 import { easex } from "../lib/easexClient";
+import AppIcon from "../components/AppIcon";
 
 export default function ForgotPassword() {
   const [submitted, setSubmitted] = useState(false);
@@ -26,6 +27,7 @@ export default function ForgotPassword() {
     <div className="auth-page">
       <div className="auth-panel">
         <div className="brand-hero">
+          <AppIcon size={88} className="brand-hero-icon" />
           Ease<span className="brand-gold">X</span>
         </div>
 

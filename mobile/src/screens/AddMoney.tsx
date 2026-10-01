@@ -59,7 +59,12 @@ export default function AddMoneyScreen() {
     setBusy(true);
     try {
       if (mode === "now") {
-        const txn = await easex.payments.load({ amount: amount.trim(), network, phone_number: phone.trim(), idempotency_key: key.current });
+        const txn = await easex.payments.load({
+          amount: amount.trim(),
+          network,
+          ...(network !== "bank" ? { phone_number: phone.trim() } : {}),
+          idempotency_key: key.current,
+        });
         setResult(txn);
         key.current = newIdempotencyKey();
         refresh();
@@ -80,6 +85,11 @@ export default function AddMoneyScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const switchMode = (m: string) => {
+    setMode(m);
+    if (m === "later" && network === "bank") setNetwork("mtn"); // scheduled loads are mobile-money only
   };
 
   const showAddress = async () => {
@@ -144,7 +154,7 @@ export default function AddMoneyScreen() {
           </View>
         ) : (
           <View>
-            <Segmented options={[{ value: "now", label: "Add now" }, { value: "later", label: "Schedule" }]} value={mode} onChange={setMode} />
+            <Segmented options={[{ value: "now", label: "Add now" }, { value: "later", label: "Schedule" }]} value={mode} onChange={switchMode} />
             <Field
               label="Amount (GHS)"
               value={amount}
@@ -153,8 +163,17 @@ export default function AddMoneyScreen() {
               placeholder="100.00"
               hint={config ? `You can add up to ${formatMoney(config.loads_remaining_ghs, "GHS")} in the next 24 hours.` : undefined}
             />
-            <Choice label="Network" options={(config?.mobile_money_networks ?? []).map((n) => ({ value: n.value, label: n.label }))} value={network} onChange={setNetwork} />
-            <Field label="Mobile money number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="024 123 4567" />
+            <Choice
+              label="Payment method"
+              options={(mode === "now" ? config?.payment_methods : config?.mobile_money_networks)?.map((n) => ({ value: n.value, label: n.label })) ?? []}
+              value={network}
+              onChange={setNetwork}
+            />
+            {network === "bank" ? (
+              <Hint>We'll show you EaseX's account details and a reference after you continue — your balance updates once we match your transfer.</Hint>
+            ) : (
+              <Field label="Mobile money number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="024 123 4567" />
+            )}
 
             {mode === "later" && (
               <View>
@@ -169,7 +188,7 @@ export default function AddMoneyScreen() {
               title={mode === "now" ? "Continue" : "Schedule load"}
               onPress={submitMomo}
               busy={busy}
-              disabled={!amount || !phone || (config ? !config.loads_enabled : false)}
+              disabled={!amount || (network !== "bank" && !phone) || (config ? !config.loads_enabled : false)}
             />
           </View>
         ))}

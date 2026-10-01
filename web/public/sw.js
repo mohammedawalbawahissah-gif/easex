@@ -27,6 +27,8 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title || "EaseX", {
       body: body || "",
       data,
+      icon: "/icon-192.png",
+      badge: "/badge-96.png",
       tag: data?.notification_id, // replaces any existing notification for the same item instead of stacking
     })
   );

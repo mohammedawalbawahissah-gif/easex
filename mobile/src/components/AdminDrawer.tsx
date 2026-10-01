@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, usePathname } from "expo-router";
 import { colors, fonts } from "../theme";
 import { useAuth } from "../context/AuthContext";
+import AppIcon from "./AppIcon";
 
 const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard" },
@@ -42,7 +43,10 @@ export function AdminDrawerButton() {
       <Modal visible={open} animationType="fade" transparent onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={[styles.panel, { paddingTop: insets.top + 16 }]} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.panelTitle}>Admin</Text>
+            <View style={styles.panelBrand}>
+              <AppIcon size={32} />
+              <Text style={styles.panelTitle}>Admin</Text>
+            </View>
             {NAV_ITEMS.map((item) => {
               const active = pathname === item.to || (item.to !== "/admin" && pathname?.startsWith(item.to));
               return (
@@ -94,7 +98,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: "100%",
   },
-  panelTitle: { fontFamily: fonts.displaySemiBold, fontSize: 20, color: colors.ink, marginBottom: 16, paddingHorizontal: 10 },
+  panelBrand: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16, paddingHorizontal: 10 },
+  panelTitle: { fontFamily: fonts.displaySemiBold, fontSize: 20, color: colors.ink },
   navItem: { paddingVertical: 12, paddingHorizontal: 10, borderRadius: 8 },
   navItemActive: { backgroundColor: colors.gold },
   navText: { fontFamily: fonts.bodyMedium, fontSize: 14.5, color: colors.ink },

@@ -1,10 +1,12 @@
 import uuid
 
+from apps.security.file_validation import validate_upload
 from apps.security.permissions import IsStaffWith2FA
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from . import services
 from .models import SupportSession
@@ -43,6 +45,16 @@ class SupportSessionViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    def get_throttles(self):
+        # Only /start/ (what wakes the AI assistant) gets the tighter,
+        # dedicated scope — DRF resolves throttle_scope per-request via
+        # this hook, not a plain class attribute, since it needs to
+        # differ from the rest of the viewset's actions.
+        if self.action == "start":
+            self.throttle_scope = "ai_session_start"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
     def get_queryset(self):
         qs = SupportSession.objects.prefetch_related("messages")
         if self.request.user and self.request.user.is_authenticated:
@@ -67,6 +79,8 @@ class SupportSessionViewSet(viewsets.ReadOnlyModelViewSet):
     def message(self, request, pk=None):
         body = (request.data.get("body") or "").strip()
         attachment = request.FILES.get("attachment")
+        if attachment:
+            validate_upload(attachment)
         if not body and not attachment:
             raise serializers.ValidationError({"body": "Message can't be empty."})
         kwargs = {}
@@ -151,6 +165,8 @@ class AdminSupportSessionViewSet(viewsets.ReadOnlyModelViewSet):
     def message(self, request, pk=None):
         body = (request.data.get("body") or "").strip()
         attachment = request.FILES.get("attachment")
+        if attachment:
+            validate_upload(attachment)
         if not body and not attachment:
             raise serializers.ValidationError({"body": "Message can't be empty."})
         try:

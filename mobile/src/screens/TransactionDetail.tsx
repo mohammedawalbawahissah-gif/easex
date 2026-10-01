@@ -7,6 +7,7 @@ import { TRANSACTION_TYPE_LABELS as TYPE_LABELS } from "@easex/shared";
 import { formatMoney } from "../lib/money";
 import { easex } from "../lib/easexClient";
 import { colors, fonts, statusColors, statusLabel } from "../theme";
+import AppIcon from "../components/AppIcon";
 
 const STATUS_EXPLANATION: Record<Transaction["status"], string> = {
   pending: "This transaction hasn't started review yet.",
@@ -75,9 +76,12 @@ export default function TransactionDetailScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.container, { paddingTop: insets.top + 16 }]}>
-      <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.dismissTo("/(tabs)"))}>
-        <Text style={styles.back}>← Back</Text>
-      </TouchableOpacity>
+      <View style={styles.topRow}>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.dismissTo("/(tabs)"))}>
+          <Text style={styles.back}>← Back</Text>
+        </TouchableOpacity>
+        <AppIcon size={28} />
+      </View>
 
       {loading ? (
         <Text style={styles.muted}>Loading…</Text>
@@ -147,7 +151,8 @@ export default function TransactionDetailScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
   container: { padding: 24, paddingBottom: 48 },
-  back: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.inkSoft, marginBottom: 16 },
+  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  back: { fontFamily: fonts.bodyMedium, fontSize: 14, color: colors.inkSoft },
   muted: { fontFamily: fonts.bodyRegular, color: colors.inkSoft },
   error: { fontFamily: fonts.bodyRegular, color: colors.danger },
   title: { fontFamily: fonts.displaySemiBold, fontSize: 22, color: colors.ink, marginBottom: 4 },

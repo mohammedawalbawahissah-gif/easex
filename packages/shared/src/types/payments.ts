@@ -11,10 +11,18 @@ export interface MobileMoneyNetwork {
   label: string;
 }
 
+/** Every rail the "load wallet" screen can offer — mobile money networks plus bank transfer. */
+export interface PaymentMethod {
+  value: string;
+  label: string;
+}
+
 /** Rules and live limits for the money screens — one call draws them all. */
 export interface PaymentConfig {
   fiat_currency: "GHS";
   mobile_money_networks: MobileMoneyNetwork[];
+  /** Use this (not mobile_money_networks) to render the load-wallet method picker. */
+  payment_methods: PaymentMethod[];
   /** Networks each cryptocurrency can be sent/received on. */
   crypto_networks: Record<string, NetworkOption[]>;
   daily_limit_ghs: string;
@@ -36,8 +44,10 @@ export interface PaymentConfig {
 
 export interface LoadWalletPayload {
   amount: string;
+  /** A mobile money network value, or "bank" for a direct bank transfer. */
   network: string;
-  phone_number: string;
+  /** Not needed when network is "bank". */
+  phone_number?: string;
   idempotency_key: string;
 }
 
@@ -146,17 +156,24 @@ export interface TransferLookupResult {
 
 export interface PayoutDestination {
   id: string;
-  kind: "mobile_money";
+  kind: "mobile_money" | "bank";
   network: string;
   account_number: string;
   account_name: string;
+  bank_name: string;
+  bank_branch: string;
   created_at: string;
 }
 
 export interface CreatePayoutDestinationPayload {
-  network: string;
+  kind?: "mobile_money" | "bank";
+  /** Required when kind is "mobile_money" (or omitted). */
+  network?: string;
   account_number: string;
   account_name: string;
+  /** Required when kind is "bank". */
+  bank_name?: string;
+  bank_branch?: string;
   password: string;
   /** Required when 2FA is on. */
   otp?: string;

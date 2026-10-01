@@ -5,6 +5,7 @@ import { loginSchema, type LoginFormValues, ApiError, apiErrorMessage } from "@e
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PasswordField from "../components/PasswordField";
+import AppIcon from "../components/AppIcon";
 
 export default function Login() {
   const { login, completeMfaLogin } = useAuth();
@@ -63,7 +64,10 @@ export default function Login() {
     return (
       <div className="auth-page">
         <div className="auth-panel">
-          <div className="brand-hero">Ease<span className="brand-gold">X</span></div>
+          <div className="brand-hero">
+            <AppIcon size={88} className="brand-hero-icon" />
+            Ease<span className="brand-gold">X</span>
+          </div>
           <form className="auth-form" onSubmit={submitCode} noValidate>
             <p className="hint" style={{ margin: "0 0 12px" }}>
               Enter the 6-digit code from your authenticator app. Lost your phone? Use one of your recovery codes instead.
@@ -85,6 +89,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-panel">
         <div className="brand-hero">
+          <AppIcon size={88} className="brand-hero-icon" />
           Ease<span className="brand-gold">X</span>
         </div>
         <form className="auth-form" onSubmit={handleSubmit(onSubmit)} noValidate>

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, webhooks
 
 urlpatterns = [
     path("config/", views.PaymentConfigView.as_view(), name="payments-config"),
@@ -18,4 +18,8 @@ urlpatterns = [
     path("destinations/", views.PayoutDestinationListCreateView.as_view(), name="payments-destinations"),
     path("destinations/<uuid:pk>/", views.PayoutDestinationDetailView.as_view(), name="payments-destination-detail"),
     path("payout-preference/", views.PayoutPreferenceView.as_view(), name="payments-payout-preference"),
+    # Gateway callbacks — no user auth, see webhooks.py docstring.
+    path("webhooks/hubtel/collection/", webhooks.HubtelCollectionWebhookView.as_view(), name="payments-webhook-hubtel-collection"),
+    path("webhooks/hubtel/payout/", webhooks.HubtelPayoutWebhookView.as_view(), name="payments-webhook-hubtel-payout"),
+    path("webhooks/mtn-momo/<str:token>/", webhooks.MTNMoMoWebhookView.as_view(), name="payments-webhook-mtn-momo"),
 ]

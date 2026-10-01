@@ -17,6 +17,7 @@ from .currencies import (
     MEMO_NETWORKS,
     MOBILE_MONEY_NETWORKS,
     NETWORK_LABELS,
+    PAYMENT_METHODS,
 )
 from .models import (
     PaymentSettings,
@@ -96,6 +97,11 @@ class PaymentConfigView(APIView):
             {
                 "fiat_currency": FIAT_CURRENCY,
                 "mobile_money_networks": [{"value": k, "label": v} for k, v in MOBILE_MONEY_NETWORKS.items()],
+                # Everything the "load wallet" screen can offer, in order —
+                # mobile money networks plus bank transfer. Use this (not
+                # mobile_money_networks) to render the load method picker,
+                # since it's the one that grows if a new rail is added.
+                "payment_methods": [{"value": k, "label": v} for k, v in PAYMENT_METHODS.items()],
                 "crypto_networks": {
                     cur: [{"value": n, "label": NETWORK_LABELS[n], "needs_memo": n in MEMO_NETWORKS} for n in nets]
                     for cur, nets in CRYPTO_NETWORKS.items()
@@ -125,7 +131,7 @@ class LoadWalletView(PaymentView):
             user=request.user,
             amount=d["amount"],
             network=d["network"],
-            phone_number=d["phone_number"],
+            phone_number=d.get("phone_number", ""),
             idempotency_key=d["idempotency_key"],
         )
         return _txn_response(txn, created)
@@ -307,9 +313,12 @@ class PayoutDestinationListCreateView(PaymentView):
         self.confirm_password(request, d)
         dest = services.add_destination(
             user=request.user,
-            network=d["network"],
+            kind=d.get("kind", PayoutDestination.Kind.MOBILE_MONEY),
+            network=d.get("network", ""),
             account_number=d["account_number"],
             account_name=d["account_name"],
+            bank_name=d.get("bank_name", ""),
+            bank_branch=d.get("bank_branch", ""),
         )
         return Response(PayoutDestinationSerializer(dest).data, status=201)
 

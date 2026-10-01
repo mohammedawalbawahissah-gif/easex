@@ -21,9 +21,12 @@ export default function Payouts() {
   const [busy, setBusy] = useState(false);
 
   // add-account form
+  const [kind, setKind] = useState<"mobile_money" | "bank">("mobile_money");
   const [network, setNetwork] = useState("mtn");
   const [number, setNumber] = useState("");
   const [name, setName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankBranch, setBankBranch] = useState("");
   const [addPassword, setAddPassword] = useState("");
 
   // auto-payout form
@@ -39,7 +42,8 @@ export default function Payouts() {
   };
   useEffect(load, []);
 
-  const netLabel = (v: string) => config?.mobile_money_networks.find((n) => n.value === v)?.label ?? v;
+  const netLabel = (d: PayoutDestination) =>
+    d.kind === "bank" ? d.bank_name : (config?.mobile_money_networks.find((n) => n.value === d.network)?.label ?? d.network);
 
   const run = async (fn: () => Promise<unknown>, okMessage: string) => {
     setBusy(true);
@@ -59,8 +63,15 @@ export default function Payouts() {
   const addAccount = (e: React.FormEvent) => {
     e.preventDefault();
     run(async () => {
-      await easex.payments.destinations.create({ network, account_number: number.trim(), account_name: name.trim(), password: addPassword, ...otpField });
-      setNumber(""); setName(""); setAddPassword("");
+      await easex.payments.destinations.create({
+        kind,
+        ...(kind === "bank" ? { bank_name: bankName.trim(), bank_branch: bankBranch.trim() } : { network }),
+        account_number: number.trim(),
+        account_name: name.trim(),
+        password: addPassword,
+        ...otpField,
+      });
+      setNumber(""); setName(""); setBankName(""); setBankBranch(""); setAddPassword("");
     }, "Payout account saved.");
   };
 
@@ -87,7 +98,7 @@ export default function Payouts() {
           destinations.map((d) => (
             <div className="passbook-row" key={d.id}>
               <div className="passbook-row-main">
-                <span className="passbook-row-title">{netLabel(d.network)} · {d.account_number}</span>
+                <span className="passbook-row-title">{netLabel(d)} · {d.account_number}</span>
                 <span className="passbook-row-meta">{d.account_name}</span>
               </div>
               <button className="btn-secondary" disabled={busy} onClick={() => run(() => easex.payments.destinations.remove(d.id), "Payout account removed.")}>
@@ -98,18 +109,41 @@ export default function Payouts() {
         )}
       </div>
 
-      <h2 className="section-title">Add a mobile money account</h2>
+      <h2 className="section-title">Add a payout account</h2>
       <form className="auth-form" onSubmit={addAccount} noValidate>
-        <div className="field">
-          <label htmlFor="n">Network</label>
-          <select id="n" value={network} onChange={(e) => setNetwork(e.target.value)}>
-            {(config?.mobile_money_networks ?? []).map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
-          </select>
+        <div className="seg" role="group" aria-label="Account type">
+          <button type="button" aria-pressed={kind === "mobile_money"} onClick={() => setKind("mobile_money")}>Mobile money</button>
+          <button type="button" aria-pressed={kind === "bank"} onClick={() => setKind("bank")}>Bank account</button>
         </div>
-        <div className="field">
-          <label htmlFor="num">Number</label>
-          <input id="num" value={number} onChange={(e) => setNumber(e.target.value)} inputMode="tel" placeholder="024 123 4567" />
-        </div>
+        {kind === "mobile_money" ? (
+          <>
+            <div className="field">
+              <label htmlFor="n">Network</label>
+              <select id="n" value={network} onChange={(e) => setNetwork(e.target.value)}>
+                {(config?.mobile_money_networks ?? []).map((n) => <option key={n.value} value={n.value}>{n.label}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="num">Number</label>
+              <input id="num" value={number} onChange={(e) => setNumber(e.target.value)} inputMode="tel" placeholder="024 123 4567" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="field">
+              <label htmlFor="bn">Bank name</label>
+              <input id="bn" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="e.g. GCB Bank" />
+            </div>
+            <div className="field">
+              <label htmlFor="bb">Branch (optional)</label>
+              <input id="bb" value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} />
+            </div>
+            <div className="field">
+              <label htmlFor="num">Account number</label>
+              <input id="num" value={number} onChange={(e) => setNumber(e.target.value)} inputMode="numeric" />
+            </div>
+          </>
+        )}
         <div className="field">
           <label htmlFor="nm">Name on the account</label>
           <input id="nm" value={name} onChange={(e) => setName(e.target.value)} />
@@ -124,7 +158,12 @@ export default function Payouts() {
             <input id="otp1" inputMode="numeric" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))} autoComplete="one-time-code" />
           </div>
         )}
-        <button className="btn-primary" disabled={busy || !number || !name || !addPassword}>Save account</button>
+        <button
+          className="btn-primary"
+          disabled={busy || !number || !name || !addPassword || (kind === "bank" && !bankName)}
+        >
+          Save account
+        </button>
       </form>
 
       <h2 className="section-title">Automatic gift card payouts</h2>
@@ -145,7 +184,7 @@ export default function Payouts() {
           <div className="field">
             <label htmlFor="ad">Send earnings to</label>
             <select id="ad" value={pref?.auto_payout_enabled && pref.destination_id ? pref.destination_id : chosen} onChange={(e) => setChosen(e.target.value)}>
-              {destinations.map((d) => <option key={d.id} value={d.id}>{netLabel(d.network)} · {d.account_number}</option>)}
+              {destinations.map((d) => <option key={d.id} value={d.id}>{netLabel(d)} · {d.account_number}</option>)}
             </select>
           </div>
         )}

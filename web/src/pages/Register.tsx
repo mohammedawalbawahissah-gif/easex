@@ -5,6 +5,7 @@ import { registerSchema, type RegisterFormValues, ApiError } from "@easex/shared
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PasswordField from "../components/PasswordField";
+import AppIcon from "../components/AppIcon";
 
 export default function Register() {
   const { register: doRegister } = useAuth();
@@ -35,6 +36,7 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-panel">
         <div className="brand-hero">
+          <AppIcon size={88} className="brand-hero-icon" />
           Ease<span className="brand-gold">X</span>
         </div>
         <h1 className="auth-subtitle">Create your account</h1>

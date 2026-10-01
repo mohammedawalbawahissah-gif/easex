@@ -1,7 +1,27 @@
+from django.urls import reverse
 from rest_framework import serializers
 
 from apps.users.models import User
 from .models import ComplianceFlag, KYCSubmission
+
+KYC_IMAGE_FIELDS = ("id_document_front", "id_document_back", "selfie")
+
+
+def _use_authenticated_image_urls(data, instance, request):
+    """
+    Swaps each field's raw MEDIA_URL for the authenticated KYCImageView
+    URL — these are ID documents and selfies; unlike most media, "you
+    have the link" should never be enough to view them. Read-side only —
+    the underlying model fields stay writable as normal FileFields, this
+    just changes what URL comes back in a response.
+    """
+    for field in KYC_IMAGE_FIELDS:
+        if data.get(field):
+            path = reverse("kyc-image", kwargs={"submission_id": instance.pk, "field": field})
+            data[field] = request.build_absolute_uri(path) if request else path
+        else:
+            data[field] = None
+    return data
 
 
 class KYCSubmissionSerializer(serializers.ModelSerializer):
@@ -13,6 +33,10 @@ class KYCSubmissionSerializer(serializers.ModelSerializer):
             "status", "rejection_reason", "submitted_at", "reviewed_at",
         ]
         read_only_fields = ["id", "status", "rejection_reason", "submitted_at", "reviewed_at"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        return _use_authenticated_image_urls(data, instance, self.context.get("request"))
 
     def validate(self, attrs):
         user = self.context["request"].user
@@ -44,6 +68,10 @@ class AdminKYCSubmissionSerializer(serializers.ModelSerializer):
             "status", "rejection_reason", "reviewed_by", "reviewed_at", "submitted_at",
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        return _use_authenticated_image_urls(data, instance, self.context.get("request"))
 
 
 class ComplianceFlagSerializer(serializers.ModelSerializer):

@@ -162,13 +162,13 @@ export default function Withdraw() {
           <div className="field">
             <label htmlFor="dest">Send to</label>
             {destinations.length === 0 ? (
-              <p className="hint" style={{ margin: 0 }}>You haven't saved a mobile money account yet. <Link to="/payouts">Add one</Link></p>
+              <p className="hint" style={{ margin: 0 }}>You haven't saved a payout account yet. <Link to="/payouts">Add one</Link></p>
             ) : (
               <>
                 <select id="dest" value={destinationId} onChange={(e) => setDestinationId(e.target.value)}>
                   {destinations.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {config?.mobile_money_networks.find((n) => n.value === d.network)?.label ?? d.network} · {d.account_number} · {d.account_name}
+                      {d.kind === "bank" ? d.bank_name : (config?.mobile_money_networks.find((n) => n.value === d.network)?.label ?? d.network)} · {d.account_number} · {d.account_name}
                     </option>
                   ))}
                 </select>

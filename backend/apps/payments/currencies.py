@@ -70,6 +70,14 @@ MOBILE_MONEY_NETWORKS = {
     "airteltigo": "AirtelTigo Money",
 }
 
+# Every rail a user can pick to load their wallet: the three mobile money
+# networks (routed to Hubtel or, for MTN specifically, direct MTN MoMo —
+# see payments/providers.py get_provider_for) plus a direct bank transfer.
+PAYMENT_METHODS = {
+    **MOBILE_MONEY_NETWORKS,
+    "bank": "Bank transfer",
+}
+
 
 def decimal_places(currency: str) -> int:
     return 2 if currency == FIAT_CURRENCY else 8

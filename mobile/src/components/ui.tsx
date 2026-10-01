@@ -159,6 +159,7 @@ export function Dropdown({ label, placeholder = "Select…", options, value, onC
   error?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const selected = options.find((o) => o.value === value);
   return (
     <View style={styles.field}>
@@ -178,7 +179,7 @@ export function Dropdown({ label, placeholder = "Select…", options, value, onC
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
+          <Pressable style={[styles.sheet, { paddingBottom: 20 + insets.bottom }]} onPress={() => {}}>
             <Text style={styles.sheetTitle}>{label}</Text>
             <FlatList
               data={options}
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.ink },
   dropdownField: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  sheet: { maxHeight: "75%", backgroundColor: colors.paper, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 28 },
+  sheet: { maxHeight: "75%", backgroundColor: colors.paper, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20 },
   sheetTitle: { fontFamily: fonts.displaySemiBold, fontSize: 16, color: colors.ink, marginBottom: 8 },
   sheetItem: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, paddingVertical: 14 },
   sheetItemText: { fontFamily: fonts.bodyRegular, fontSize: 15, color: colors.ink },

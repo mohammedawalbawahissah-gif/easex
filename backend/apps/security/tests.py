@@ -494,3 +494,65 @@ class DjangoAdminSecurityTests(Base):
         from django.conf import settings
 
         self.assertEqual(settings.ADMIN_URL, "admin/")
+
+
+class FileValidationTests(APITestCase):
+    """
+    apps.security.file_validation — added alongside the audit fix for
+    unrestricted attachment uploads. Checked against real bytes, not just
+    the client-claimed Content-Type, since that header is spoofable.
+    """
+
+    def _upload(self, name, content, content_type):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return SimpleUploadedFile(name, content, content_type=content_type)
+
+    def _real_png_bytes(self):
+        import io
+
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (2, 2), color=(10, 20, 30)).save(buf, format="PNG")
+        return buf.getvalue()
+
+    def test_a_real_image_passes(self):
+        from apps.security.file_validation import validate_upload
+
+        f = self._upload("photo.png", self._real_png_bytes(), "image/png")
+        validate_upload(f)  # must not raise
+
+    def test_a_disallowed_content_type_is_rejected(self):
+        from rest_framework import serializers
+
+        from apps.security.file_validation import validate_upload
+
+        f = self._upload("payload.sh", b"#!/bin/sh\nrm -rf /\n", "application/x-sh")
+        with self.assertRaises(serializers.ValidationError):
+            validate_upload(f)
+
+    def test_bytes_that_dont_match_the_claimed_type_are_rejected(self):
+        """The exact spoofing attempt the audit was written against: a script claiming to be a jpeg."""
+        from rest_framework import serializers
+
+        from apps.security.file_validation import validate_upload
+
+        f = self._upload("fake.jpg", b"#!/bin/sh\nrm -rf /\n", "image/jpeg")
+        with self.assertRaises(serializers.ValidationError):
+            validate_upload(f)
+
+    def test_a_file_over_the_size_limit_is_rejected(self):
+        from rest_framework import serializers
+
+        from apps.security.file_validation import validate_upload
+
+        f = self._upload("big.png", self._real_png_bytes(), "image/png")
+        with self.assertRaises(serializers.ValidationError):
+            validate_upload(f, max_bytes=10)  # smaller than any real PNG
+
+    def test_a_pdf_signature_is_recognised(self):
+        from apps.security.file_validation import validate_upload
+
+        f = self._upload("doc.pdf", b"%PDF-1.4\n%mock pdf body", "application/pdf")
+        validate_upload(f)  # must not raise

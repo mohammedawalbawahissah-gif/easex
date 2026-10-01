@@ -1,15 +1,37 @@
 import uuid
 from decimal import Decimal
 
+from django.urls import reverse
 from rest_framework import serializers
 
 from apps.transactions.models import Transaction
 from apps.wallets.models import Wallet
 
 from apps.security import crypto
+from apps.security.file_validation import validate_upload
 
 from . import services
 from .models import GiftCardBrand, GiftCardImage, GiftCardSubcategory, GiftCardSubmission
+
+
+def _authenticated_card_image_url(instance, request):
+    """Read-side only — the underlying card_image field stays a normal writable ImageField."""
+    if not instance.card_image:
+        return None
+    path = reverse("giftcard-image", kwargs={"submission_id": instance.pk})
+    return request.build_absolute_uri(path) if request else path
+
+
+def _gallery_urls(instance, request):
+    items = []
+    for img in instance.gallery.all():
+        path = reverse("giftcard-gallery-image", kwargs={"image_id": img.id})
+        items.append({
+            "id": str(img.id),
+            "url": request.build_absolute_uri(path) if request else path,
+            "content_type": img.content_type,
+        })
+    return items
 
 
 # ---------------------------------------------------------------------------
@@ -90,16 +112,12 @@ class AdminGiftCardSubmissionSerializer(serializers.ModelSerializer):
         return bool(obj.card_code_encrypted)
 
     def get_gallery(self, obj):
-        request = self.context.get("request")
-        items = []
-        for img in obj.gallery.all():
-            url = img.file.url
-            items.append({
-                "id": str(img.id),
-                "url": request.build_absolute_uri(url) if request else url,
-                "content_type": img.content_type,
-            })
-        return items
+        return _gallery_urls(obj, self.context.get("request"))
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["card_image"] = _authenticated_card_image_url(instance, self.context.get("request"))
+        return data
 
     def get_brand_name(self, obj):
         return services.brand_display_name(obj)
@@ -131,6 +149,11 @@ class GiftCardSubmissionSerializer(serializers.ModelSerializer):
     )
     gallery = serializers.SerializerMethodField()
 
+    def validate_images(self, value):
+        for f in value:
+            validate_upload(f)
+        return value
+
     class Meta:
         model = GiftCardSubmission
         fields = [
@@ -155,16 +178,12 @@ class GiftCardSubmissionSerializer(serializers.ModelSerializer):
         return str(services.payout_for(obj.face_value, obj.offered_rate))
 
     def get_gallery(self, obj):
-        request = self.context.get("request")
-        items = []
-        for img in obj.gallery.all():
-            url = img.file.url
-            items.append({
-                "id": str(img.id),
-                "url": request.build_absolute_uri(url) if request else url,
-                "content_type": img.content_type,
-            })
-        return items
+        return _gallery_urls(obj, self.context.get("request"))
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["card_image"] = _authenticated_card_image_url(instance, self.context.get("request"))
+        return data
 
     def validate(self, attrs):
         sub = attrs["subcategory"]

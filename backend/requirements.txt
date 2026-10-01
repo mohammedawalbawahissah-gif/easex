@@ -10,3 +10,5 @@ gunicorn==23.0.0
 pywebpush==2.5.0
 cryptography>=43
 pyotp==2.9.0
+requests==2.32.3
+django-anymail[sendgrid,amazon-ses,postmark,mailgun]==13.0

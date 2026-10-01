@@ -7,7 +7,7 @@ import { usePaymentConfig } from "../lib/usePaymentConfig";
 import { useSecurityStatus } from "../lib/useSecurityStatus";
 import { formatMoney } from "../lib/money";
 import { colors, fonts } from "../theme";
-import { Screen, Title, SectionTitle, Field, Hint, PrimaryButton, SecondaryButton, Message, Choice } from "../components/ui";
+import { Screen, Title, SectionTitle, Field, Hint, PrimaryButton, SecondaryButton, Message, Choice, Segmented } from "../components/ui";
 
 export default function PayoutsScreen() {
   const { config } = usePaymentConfig();
@@ -20,9 +20,12 @@ export default function PayoutsScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [kind, setKind] = useState<"mobile_money" | "bank">("mobile_money");
   const [network, setNetwork] = useState("mtn");
   const [number, setNumber] = useState("");
   const [name, setName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankBranch, setBankBranch] = useState("");
   const [addPassword, setAddPassword] = useState("");
   const [chosen, setChosen] = useState("");
   const [prefPassword, setPrefPassword] = useState("");
@@ -36,7 +39,8 @@ export default function PayoutsScreen() {
   }, []);
   useEffect(load, [load]);
 
-  const netLabel = (v: string) => config?.mobile_money_networks.find((n) => n.value === v)?.label ?? v;
+  const netLabel = (d: PayoutDestination) =>
+    d.kind === "bank" ? d.bank_name : (config?.mobile_money_networks.find((n) => n.value === d.network)?.label ?? d.network);
 
   const run = async (fn: () => Promise<unknown>, okMessage: string) => {
     setBusy(true);
@@ -55,8 +59,15 @@ export default function PayoutsScreen() {
 
   const addAccount = () =>
     run(async () => {
-      await easex.payments.destinations.create({ network, account_number: number.trim(), account_name: name.trim(), password: addPassword, ...otpField });
-      setNumber(""); setName(""); setAddPassword("");
+      await easex.payments.destinations.create({
+        kind,
+        ...(kind === "bank" ? { bank_name: bankName.trim(), bank_branch: bankBranch.trim() } : { network }),
+        account_number: number.trim(),
+        account_name: name.trim(),
+        password: addPassword,
+        ...otpField,
+      });
+      setNumber(""); setName(""); setBankName(""); setBankBranch(""); setAddPassword("");
     }, "Payout account saved.");
 
   const setAuto = (enabled: boolean) =>
@@ -81,7 +92,7 @@ export default function PayoutsScreen() {
           destinations.map((d) => (
             <View key={d.id} style={styles.row}>
               <View style={{ flexShrink: 1 }}>
-                <Text style={styles.rowTitle}>{netLabel(d.network)} · {d.account_number}</Text>
+                <Text style={styles.rowTitle}>{netLabel(d)} · {d.account_number}</Text>
                 <Text style={styles.rowMeta}>{d.account_name}</Text>
               </View>
               <TouchableOpacity style={styles.remove} disabled={busy} onPress={() => run(() => easex.payments.destinations.remove(d.id), "Payout account removed.")}>
@@ -92,15 +103,30 @@ export default function PayoutsScreen() {
         )}
       </View>
 
-      <SectionTitle>Add a mobile money account</SectionTitle>
-      <Choice label="Network" options={(config?.mobile_money_networks ?? []).map((n) => ({ value: n.value, label: n.label }))} value={network} onChange={setNetwork} />
-      <Field label="Number" value={number} onChangeText={setNumber} keyboardType="phone-pad" placeholder="024 123 4567" />
+      <SectionTitle>Add a payout account</SectionTitle>
+      <Segmented
+        options={[{ value: "mobile_money", label: "Mobile money" }, { value: "bank", label: "Bank account" }]}
+        value={kind}
+        onChange={(v) => setKind(v as "mobile_money" | "bank")}
+      />
+      {kind === "mobile_money" ? (
+        <>
+          <Choice label="Network" options={(config?.mobile_money_networks ?? []).map((n) => ({ value: n.value, label: n.label }))} value={network} onChange={setNetwork} />
+          <Field label="Number" value={number} onChangeText={setNumber} keyboardType="phone-pad" placeholder="024 123 4567" />
+        </>
+      ) : (
+        <>
+          <Field label="Bank name" value={bankName} onChangeText={setBankName} placeholder="e.g. GCB Bank" autoCapitalize="words" />
+          <Field label="Branch (optional)" value={bankBranch} onChangeText={setBankBranch} autoCapitalize="words" />
+          <Field label="Account number" value={number} onChangeText={setNumber} keyboardType="number-pad" />
+        </>
+      )}
       <Field label="Name on the account" value={name} onChangeText={setName} autoCapitalize="words" autoCorrect />
       <Field label="Your password" value={addPassword} onChangeText={setAddPassword} secureToggle autoComplete="current-password" />
       {security?.totp_enabled && (
         <Field label="Authenticator code" value={otp} onChangeText={(v) => setOtp(v.replace(/\D/g, ""))} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code" />
       )}
-      <PrimaryButton title="Save account" onPress={addAccount} busy={busy} disabled={!number || !name || !addPassword} />
+      <PrimaryButton title="Save account" onPress={addAccount} busy={busy} disabled={!number || !name || !addPassword || (kind === "bank" && !bankName)} />
 
       <SectionTitle>Automatic gift card payouts</SectionTitle>
       {!operatorOn && <Message kind="warn">Automatic payouts aren't switched on yet. Approved gift card earnings will go to your wallet, and you can withdraw them any time.</Message>}
@@ -111,7 +137,7 @@ export default function PayoutsScreen() {
       </Hint>
       <Text style={styles.status}>Status: {pref?.auto_payout_enabled ? "On" : "Off"}</Text>
       {destinations.length > 0 && (
-        <Choice label="Send earnings to" options={destinations.map((d) => ({ value: d.id, label: `${d.network.toUpperCase()} · ${d.account_number}` }))} value={activeDestination} onChange={setChosen} />
+        <Choice label="Send earnings to" options={destinations.map((d) => ({ value: d.id, label: `${netLabel(d)} · ${d.account_number}` }))} value={activeDestination} onChange={setChosen} />
       )}
       <Field label="Your password" value={prefPassword} onChangeText={setPrefPassword} secureToggle autoComplete="current-password" />
       {security?.totp_enabled && (

@@ -5,6 +5,7 @@ import { passwordResetConfirmSchema, type PasswordResetConfirmFormValues, ApiErr
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { easex } from "../lib/easexClient";
 import PasswordField from "../components/PasswordField";
+import AppIcon from "../components/AppIcon";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -38,6 +39,7 @@ export default function ResetPassword() {
       <div className="auth-page">
         <div className="auth-panel">
           <div className="brand-hero">
+            <AppIcon size={88} className="brand-hero-icon" />
             Ease<span className="brand-gold">X</span>
           </div>
           <p className="form-error" role="alert">
@@ -55,6 +57,7 @@ export default function ResetPassword() {
     <div className="auth-page">
       <div className="auth-panel">
         <div className="brand-hero">
+          <AppIcon size={88} className="brand-hero-icon" />
           Ease<span className="brand-gold">X</span>
         </div>
         <form className="auth-form" onSubmit={handleSubmit(onSubmit)} noValidate>

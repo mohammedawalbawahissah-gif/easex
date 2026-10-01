@@ -43,6 +43,7 @@ from .currencies import (
     FIAT_CURRENCY,
     MEMO_NETWORKS,
     MOBILE_MONEY_NETWORKS,
+    PAYMENT_METHODS,
     has_valid_precision,
     is_valid_address,
     normalize_gh_phone,
@@ -56,7 +57,7 @@ from .models import (
     ScheduledTransfer,
     ScheduledWithdrawal,
 )
-from .providers import ProviderResult, ProviderUnavailable, get_provider
+from .providers import ProviderResult, ProviderUnavailable, get_provider, get_provider_for
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -219,11 +220,14 @@ def create_wallet_load(*, user, amount, network: str, phone_number: str, idempot
     if not ps.loads_enabled:
         raise PaymentError("Adding money is temporarily unavailable. Please try again later.", "paused")
     amount = _validate_amount(FIAT_CURRENCY, amount)
-    if network not in MOBILE_MONEY_NETWORKS:
-        raise PaymentError("Choose a mobile money network.")
-    phone = normalize_gh_phone(phone_number)
-    if not phone:
-        raise PaymentError("Enter a valid Ghana mobile money number.")
+    if network not in PAYMENT_METHODS:
+        raise PaymentError("Choose a payment method.")
+    is_bank = network == "bank"
+    phone = ""
+    if not is_bank:
+        phone = normalize_gh_phone(phone_number)
+        if not phone:
+            raise PaymentError("Enter a valid Ghana mobile money number.")
 
     key = _namespaced_key(user, idempotency_key)
     with transaction.atomic():
@@ -252,14 +256,14 @@ def create_wallet_load(*, user, amount, network: str, phone_number: str, idempot
             ghs_value=amount,
             metadata={
                 "reference": reference,
-                "method": "mobile_money",
+                "method": "bank_transfer" if is_bank else "mobile_money",
                 "network": network,
                 "phone_number": phone,
             },
         )
 
     # --- outside the DB transaction: talk to the provider ---
-    provider = get_provider()
+    provider = get_provider_for(network=network)
     try:
         result = provider.start_collection(
             reference=reference, amount=amount, network=network, phone_number=phone
@@ -268,7 +272,13 @@ def create_wallet_load(*, user, amount, network: str, phone_number: str, idempot
         logger.exception("start_collection failed for %s", txn.pk)
         result = ProviderResult("pending", reference=reference, message="Provider did not respond", needs_admin=True)
 
-    return apply_collection_result(txn.pk, result), True
+    txn = apply_collection_result(txn.pk, result)
+    if is_bank and txn.status == S.UNDER_REVIEW:
+        # Bank loads reuse `instructions` (see apply_collection_result) but
+        # need the bank-specific copy, not the mobile-money one.
+        txn.metadata["instructions"] = ps.bank_transfer_instructions
+        txn.save(update_fields=["metadata", "updated_at"])
+    return txn, True
 
 
 def apply_collection_result(txn_id, result: ProviderResult) -> Transaction:
@@ -473,8 +483,8 @@ def execute_withdrawal(txn_id):
         txn.metadata["dispatched_at"] = timezone.now().isoformat()
         txn.save(update_fields=["metadata", "updated_at"])
 
-    provider = get_provider()
     dest = txn.metadata.get("destination", {})
+    provider = get_provider_for(network=dest.get("network", "") or ("bank" if dest.get("kind") == "bank" else ""))
     try:
         if txn.currency == FIAT_CURRENCY:
             result = provider.send_fiat_payout(reference=str(txn.pk), amount=txn.amount, destination=dest)
@@ -554,32 +564,50 @@ def dispatch_stuck_withdrawals() -> int:
 # ---------------------------------------------------------------------------
 
 
-def add_destination(*, user, network: str, account_number: str, account_name: str) -> PayoutDestination:
-    if network not in MOBILE_MONEY_NETWORKS:
-        raise PaymentError("Choose a mobile money network.")
-    number = normalize_gh_phone(account_number)
-    if not number:
-        raise PaymentError("Enter a valid Ghana mobile money number.")
+def add_destination(
+    *, user, network: str = "", account_number: str, account_name: str,
+    kind: str = PayoutDestination.Kind.MOBILE_MONEY, bank_name: str = "", bank_branch: str = "",
+) -> PayoutDestination:
+    """Save a payout destination — mobile money (default) or a bank account."""
     name = (account_name or "").strip()
     if len(name) < 2:
         raise PaymentError("Enter the name on the account.")
+
+    if kind == PayoutDestination.Kind.BANK:
+        number = (account_number or "").strip()
+        if len(number) < 5:
+            raise PaymentError("Enter a valid bank account number.")
+        bank = (bank_name or "").strip()
+        if len(bank) < 2:
+            raise PaymentError("Enter the bank name.")
+        network = ""  # not applicable to bank destinations
+    else:
+        if network not in MOBILE_MONEY_NETWORKS:
+            raise PaymentError("Choose a mobile money network.")
+        number = normalize_gh_phone(account_number)
+        if not number:
+            raise PaymentError("Enter a valid Ghana mobile money number.")
+        bank = ""
+        bank_branch = ""
 
     with transaction.atomic():
         user = _lock_user(user)
         if user.payout_destinations.filter(is_active=True).count() >= MAX_ACTIVE_DESTINATIONS:
             raise PaymentError(f"You can save up to {MAX_ACTIVE_DESTINATIONS} payout accounts. Remove one first.")
         if user.payout_destinations.filter(
-            is_active=True, network=network, account_number=number
+            is_active=True, kind=kind, network=network, account_number=number
         ).exists():
             raise PaymentError("That account is already saved.")
         dest = PayoutDestination.objects.create(
-            user=user, network=network, account_number=number, account_name=name
+            user=user, kind=kind, network=network, account_number=number, account_name=name,
+            bank_name=bank, bank_branch=(bank_branch or "").strip(),
         )
-        _audit(user, "payout_destination_added", "PayoutDestination", dest.pk, network=network)
+        _audit(user, "payout_destination_added", "PayoutDestination", dest.pk, kind=kind, network=network)
+    label = bank if kind == PayoutDestination.Kind.BANK else MOBILE_MONEY_NETWORKS[network]
     _notify(
         user,
         "Payout account added",
-        f"{MOBILE_MONEY_NETWORKS[network]} ••••{number[-4:]} was added to your account. "
+        f"{label} ••••{number[-4:]} was added to your account. "
         "If this wasn't you, change your password and contact support.",
         related_type="payouts",
     )

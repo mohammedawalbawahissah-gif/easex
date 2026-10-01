@@ -6,7 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
+DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 
 _DEV_SECRET_KEY = "dev-only-change-me"
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", _DEV_SECRET_KEY)
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "anymail",
     "apps.users",
     "apps.wallets",
     "apps.transactions",
@@ -129,6 +130,14 @@ REST_FRAMEWORK = {
         "lookup": "15/min",
         "money": "30/min",
         "sensitive": "10/min",  # PIN / 2FA / recovery-code changes
+        # Starting a support session is what wakes the AI assistant — the
+        # general "user" rate (120/min) bounds request volume fine, but
+        # doesn't stop someone from opening many separate sessions to run
+        # up AI API cost. A guest (anon, keyed by IP) gets the tighter
+        # rate — an authenticated account is at least identifiable and
+        # already reuses one open session (see support/services.py), so
+        # legitimate use rarely approaches even the tighter number.
+        "ai_session_start": "10/hour",
     },
 }
 
@@ -263,6 +272,37 @@ if not DEBUG and PAYMENTS_PROVIDER == "stub":
         "PAYMENTS_PROVIDER=stub is only allowed with DJANGO_DEBUG=True — it can create money from nothing."
     )
 
+# Mobile money / bank rails — see apps/payments/providers.py get_provider_for().
+# Each is OFF by default; nothing changes here until you deliberately turn
+# one on, same safety posture as PAYMENTS_PROVIDER above.
+
+# Hubtel: covers MTN MoMo, Telecel Cash and AirtelTigo Money collections/payouts.
+HUBTEL_ENABLED = os.environ.get("HUBTEL_ENABLED", "False") == "True"
+HUBTEL_CLIENT_ID = os.environ.get("HUBTEL_CLIENT_ID", "")
+HUBTEL_CLIENT_SECRET = os.environ.get("HUBTEL_CLIENT_SECRET", "")
+HUBTEL_POS_SALES_ID = os.environ.get("HUBTEL_POS_SALES_ID", "")  # merchant account / POS Sales ID
+# Public HTTPS URL Hubtel POSTs collection outcomes to. Must be reachable
+# from the internet (not localhost) — see apps/payments/webhooks.py.
+HUBTEL_CALLBACK_URL = os.environ.get("HUBTEL_CALLBACK_URL", "")
+
+# MTN MoMo direct (MTN's own Open API) — an alternative to Hubtel for MTN
+# traffic specifically. Leave off to let Hubtel carry all three networks.
+MTN_MOMO_DIRECT_ENABLED = os.environ.get("MTN_MOMO_DIRECT_ENABLED", "False") == "True"
+MTN_MOMO_SUBSCRIPTION_KEY = os.environ.get("MTN_MOMO_SUBSCRIPTION_KEY", "")
+MTN_MOMO_API_USER = os.environ.get("MTN_MOMO_API_USER", "")
+MTN_MOMO_API_KEY = os.environ.get("MTN_MOMO_API_KEY", "")
+MTN_MOMO_TARGET_ENVIRONMENT = os.environ.get("MTN_MOMO_TARGET_ENVIRONMENT", "sandbox")
+MTN_MOMO_CALLBACK_URL = os.environ.get("MTN_MOMO_CALLBACK_URL", "")
+# MTN doesn't sign its callbacks, so the callback URL itself carries a
+# shared secret path segment — see apps/payments/webhooks.py.
+MTN_MOMO_CALLBACK_TOKEN = os.environ.get("MTN_MOMO_CALLBACK_TOKEN", "")
+
+# "manual": show the user EaseX's bank details, a human reconciles (default).
+# "bank_transfer": use BankTransferProvider (currently the same behaviour,
+#                  as its own class so it's a one-line swap if you later
+#                  contract an automated bank rail).
+BANK_PROVIDER = os.environ.get("BANK_PROVIDER", "manual")
+
 
 # Web push (browser notifications) — see apps/notifications/tasks.py.
 # Mobile push uses Expo's own token-routing instead (no VAPID needed
@@ -275,13 +315,38 @@ VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "mailto:admin@easex.ex
 # point at wherever the web app's /reset-password page actually lives.
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
-# Console backend prints emails to the backend's log instead of
-# actually sending them — fine for local development, but this MUST
-# be replaced with a real SMTP/API provider (SendGrid, SES, Postmark,
-# etc.) before any real user relies on password reset in production.
-EMAIL_BACKEND = os.environ.get(
-    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
-)
+# Console backend prints emails to the backend's log — fine for local
+# development. In production this is Anymail, which gives one Django
+# EMAIL_BACKEND interface over SendGrid, SES, Postmark, Mailgun, Resend,
+# etc., so swapping providers later is a settings change, not a rewrite.
+# EMAIL_PROVIDER selects which Anymail backend to use; ANYMAIL below holds
+# each provider's own API key setting (only the selected one needs a value).
+EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "console")
+_EMAIL_BACKENDS = {
+    "console": "django.core.mail.backends.console.EmailBackend",
+    "sendgrid": "anymail.backends.sendgrid.EmailBackend",
+    "ses": "anymail.backends.amazon_ses.EmailBackend",
+    "postmark": "anymail.backends.postmark.EmailBackend",
+    "mailgun": "anymail.backends.mailgun.EmailBackend",
+    "resend": "anymail.backends.resend.EmailBackend",
+}
+if EMAIL_PROVIDER not in _EMAIL_BACKENDS:
+    raise ImproperlyConfigured(f"Unknown EMAIL_PROVIDER '{EMAIL_PROVIDER}'.")
+if not DEBUG and EMAIL_PROVIDER == "console":
+    raise ImproperlyConfigured(
+        "EMAIL_PROVIDER=console prints emails to the log instead of sending them — "
+        "fine for development, not allowed with DJANGO_DEBUG=False."
+    )
+EMAIL_BACKEND = _EMAIL_BACKENDS[EMAIL_PROVIDER]
+ANYMAIL = {
+    "SENDGRID_API_KEY": os.environ.get("SENDGRID_API_KEY", ""),
+    "POSTMARK_SERVER_TOKEN": os.environ.get("POSTMARK_SERVER_TOKEN", ""),
+    "MAILGUN_API_KEY": os.environ.get("MAILGUN_API_KEY", ""),
+    "MAILGUN_SENDER_DOMAIN": os.environ.get("MAILGUN_SENDER_DOMAIN", ""),
+    "RESEND_API_KEY": os.environ.get("RESEND_API_KEY", ""),
+    # SES authenticates via the standard AWS_* env vars / instance role,
+    # not an Anymail-specific key.
+}
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@easex.app")
 
 LANGUAGE_CODE = "en-us"

@@ -70,6 +70,16 @@ class PaymentSettings(models.Model):
             "user's load reference is appended automatically."
         ),
     )
+    bank_transfer_instructions = models.TextField(
+        blank=True,
+        help_text=(
+            "Shown to a user who chooses 'Bank transfer' to load their wallet "
+            "(e.g. account name/number/bank/branch). The user's load reference "
+            "is appended automatically so staff can match the deposit. Editable "
+            "here without a redeploy — update this the moment the company bank "
+            "account changes."
+        ),
+    )
 
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -94,19 +104,24 @@ class PaymentSettings(models.Model):
 
 
 class PayoutDestination(models.Model):
-    """A saved place to send the user's GHS (currently mobile money)."""
+    """A saved place to send the user's GHS (mobile money or a bank account)."""
 
     class Kind(models.TextChoices):
         MOBILE_MONEY = "mobile_money", "Mobile money"
+        BANK = "bank", "Bank account"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="payout_destinations"
     )
     kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.MOBILE_MONEY)
-    network = models.CharField(max_length=20, help_text="mtn / telecel / airteltigo")
-    account_number = models.CharField(max_length=20)
+    # Mobile money: "mtn" / "telecel" / "airteltigo". Bank: not used.
+    network = models.CharField(max_length=20, blank=True, help_text="mtn / telecel / airteltigo (mobile money only)")
+    account_number = models.CharField(max_length=30, help_text="Mobile money number, or bank account number")
     account_name = models.CharField(max_length=100, help_text="Name the user gave for this account")
+    # Bank-only fields. Left blank for mobile money destinations.
+    bank_name = models.CharField(max_length=100, blank=True, help_text="Bank name (bank destinations only)")
+    bank_branch = models.CharField(max_length=100, blank=True, help_text="Branch, if the user provided one")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -127,9 +142,13 @@ class PayoutDestination(models.Model):
             "network": self.network,
             "account_number": self.account_number,
             "account_name": self.account_name,
+            "bank_name": self.bank_name,
+            "bank_branch": self.bank_branch,
         }
 
     def __str__(self):
+        if self.kind == self.Kind.BANK:
+            return f"{self.bank_name} {self.account_number} ({self.user})"
         return f"{self.network} {self.account_number} ({self.user})"
 
 

@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { colors } from '../../src/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { AdminDrawerButton } from '../../src/components/AdminDrawer';
+import HeaderTitle from '../../src/components/HeaderTitle';
 
 // Same waiting/redirect pattern as (tabs)/_layout.tsx, plus an
 // is_staff check — a customer who navigates here directly bounces
@@ -36,6 +37,7 @@ export default function AdminStackLayout() {
         headerTitleStyle: { fontFamily: 'Sora_600SemiBold', color: colors.ink, fontSize: 17 },
         headerBackTitle: 'Back',
         headerLeft: () => <AdminDrawerButton />,
+        headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Admin' }} />

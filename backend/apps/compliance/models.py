@@ -46,6 +46,14 @@ class ComplianceFlag(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        indexes = [
+            # Matches the admin queue's actual query: filter by status
+            # (optional), always ordered by -created_at.
+            models.Index(fields=["status", "-created_at"]),
+            models.Index(fields=["user", "status"]),
+        ]
+
     def __str__(self):
         return f"{self.reason} — {self.user} ({self.status})"
 
@@ -122,6 +130,10 @@ class KYCSubmission(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        indexes = [
+            models.Index(fields=["status", "-submitted_at"]),
+            models.Index(fields=["user", "status"]),
+        ]
 
     def __str__(self):
         return f"{self.full_name} — {self.status} ({self.user})"

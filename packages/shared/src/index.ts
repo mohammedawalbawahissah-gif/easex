@@ -6,3 +6,4 @@ export * from "./utils/idempotency";
 export * from "./utils/errors";
 export * from "./utils/labels";
 export * from "./utils/giftcards";
+export * from "./utils/brandIcon";

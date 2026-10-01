@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs>
+      <linearGradient id="bga" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#27487A"/><stop offset="1" stop-color="#162B47"/></linearGradient>
+      <linearGradient id="carda" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FAF7F2"/></linearGradient>
+      <linearGradient id="riba" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E3AE55"/><stop offset="1" stop-color="#C98A2C"/></linearGradient>
+      <linearGradient id="coina" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EFC06A"/><stop offset=".55" stop-color="#C98A2C"/><stop offset="1" stop-color="#9C6A1E"/></linearGradient>
+      <linearGradient id="facea" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8B65C"/><stop offset="1" stop-color="#CF9234"/></linearGradient>
+      <filter id="blura" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="18"/></filter>
+    </defs><rect width="1024" height="1024" rx="224" fill="url(#bga)"/><g transform="">
+        <g transform="translate(490 575) rotate(-8)">
+          <rect x="-350" y="-235" width="700" height="470" rx="56" fill="#000" opacity=".28" transform="translate(0 22)" filter="url(#blura)"/>
+          <rect x="-350" y="-235" width="700" height="470" rx="56" fill="url(#carda)"/>
+          <clipPath id="clipa"><rect x="-350" y="-235" width="700" height="470" rx="56"/></clipPath>
+          <g clip-path="url(#clipa)"><rect x="-318" y="-240" width="60" height="480" fill="url(#riba)"/>
+            <rect x="-262" y="-240" width="4" height="480" fill="#9C6A1E" opacity=".35"/></g>
+          <g transform="translate(-288 -235)">
+            <path d="M0 0 C-8 -34 -42 -92 -88 -88 C-126 -84 -118 -30 -84 -16 C-54 -4 -22 -2 0 0Z" fill="url(#riba)" stroke="#9C6A1E" stroke-width="5" stroke-linejoin="round"/><path d="M0 0 C8 -34 42 -92 88 -88 C126 -84 118 -30 84 -16 C54 -4 22 -2 0 0Z" fill="url(#riba)" stroke="#9C6A1E" stroke-width="5" stroke-linejoin="round"/>
+            <circle cx="0" cy="-4" r="20" fill="#9C6A1E"/>
+            <circle cx="-4" cy="-8" r="8" fill="#E3AE55" opacity=".75"/>
+          </g>
+          <g fill="#15171F"><path d="M324 -19Q254 -19 200.5 5.0Q147 29 111.5 69.5Q76 110 57.5 160.5Q39 211 39 264V284Q39 339 57.5 389.5Q76 440 111.0 480.0Q146 520 198.5 543.5Q251 567 318 567Q406 567 466.5 527.5Q527 488 559.0 424.5Q591 361 591 286V232H191Q194 208 202 188Q216 151 246.0 131.0Q276 111 324 111Q368 111 396.0 128.0Q424 145 434 170H581Q569 115 534.0 72.0Q499 29 446.0 5.0Q393 -19 324 -19ZM192 323H439Q436 346 428 365Q414 400 386.5 418.5Q359 437 318 437Q276 437 247.0 418.0Q218 399 203 363Q196 345 192 323Z" transform="translate(-237.62 124.00) scale(0.58 -0.58)"/></g>
+          <g fill="#C98A2C"><path d="M12 0 173 278 18 548H191L290 362H306L399 548H562L417 282L593 0H419L301 199H285L174 0Z" transform="translate(101.40 190.00) scale(0.3 -0.3)"/></g>
+        </g>
+        <g>
+          <circle cx="800" cy="319" r="140" fill="#000" opacity=".30" filter="url(#blura)"/>
+          <circle cx="800" cy="305" r="140" fill="url(#coina)"/>
+          <circle cx="800" cy="305" r="122" fill="none" stroke="#9C6A1E" stroke-width="7" opacity=".85"/>
+          <circle cx="800" cy="305" r="110" fill="url(#facea)"/>
+          <g fill="#15171F"><path d="M82 -5V736H356Q482 736 549.5 683.0Q617 630 617 532V517Q617 449 583 408Q567 390 547 376Q587 358 613 327Q647 286 647 216V202Q647 137 617.0 90.5Q587 44 529.0 19.5Q471 -5 385 -5ZM242 306V123H393Q439 123 462.0 147.0Q485 171 485.0 215.0Q485 259 462.0 282.5Q439 306 393 306ZM242 608V430H366Q413 430 434.0 454.0Q455 478 455 518Q455 560 434.0 584.0Q413 608 366 608Z" transform="translate(725.28 380.95) scale(0.205 -0.205)"/><rect x="759.3" y="209.0" width="12" height="191.9" rx="3"/><rect x="785.9" y="209.0" width="12" height="191.9" rx="3"/></g>
+        </g></g></svg>

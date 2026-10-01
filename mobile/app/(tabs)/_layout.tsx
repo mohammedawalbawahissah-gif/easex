@@ -1,8 +1,9 @@
 import { Redirect, Stack } from 'expo-router';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import HeaderIcons from '../../src/components/HeaderIcons';
-import { colors, fonts } from '../../src/theme';
+import HeaderTitle from '../../src/components/HeaderTitle';
+import { colors } from '../../src/theme';
 import { useAuth } from '../../src/context/AuthContext';
 
 // Tabs are gone — every feature is now a card on Home, reached by
@@ -33,17 +34,14 @@ export default function HomeStackLayout() {
         headerStyle: { backgroundColor: colors.paper },
         headerShadowVisible: false,
         headerTitleStyle: { fontFamily: 'Sora_600SemiBold', color: colors.ink, fontSize: 17 },
+        headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
         headerRight: () => <HeaderIcons />,
       }}
     >
       <Stack.Screen
         name="index"
         options={{
-          headerTitle: () => (
-            <Text style={{ fontFamily: fonts.displaySemiBold, fontSize: 17, color: colors.ink }}>
-              Ease<Text style={{ color: colors.gold }}>X</Text>
-            </Text>
-          ),
+          headerTitle: () => <HeaderTitle brand />,
         }}
       />
       <Stack.Screen name="wallet" options={{ title: 'Wallet' }} />

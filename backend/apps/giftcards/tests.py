@@ -589,3 +589,95 @@ class CatalogDataTests(APITestCase):
         call_command("set_giftcard_rates", "--brand", "steam", "--format", "ecode", "--rate", "11", stdout=StringIO())
         call_command("set_giftcard_rates", "--brand", "steam", "--format", "ecode", "--rate", "13", "--overwrite", stdout=StringIO())
         self.assertEqual(GiftCardSubcategory.objects.get(brand__slug="steam", slug="usa-ecode").rate, Decimal("13"))
+
+
+class ImageAccessTests(Base):
+    """
+    GiftCardImageView / GiftCardGalleryImageView — added alongside the
+    audit fix for card photos and evidence being reachable by anyone with
+    the URL. Mirrors the scenarios checked by hand during that fix.
+    """
+
+    def _real_png(self):
+        import io
+
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (2, 2), color=(1, 2, 3)).save(buf, format="PNG")
+        return buf.getvalue()
+
+    def _submit_with_images(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        png = self._real_png()
+        self.client.force_authenticate(self.seller)
+        r = self.client.post(
+            "/api/giftcards/",
+            {
+                "subcategory": str(self.amazon.pk),
+                "card_code": f"CARD-{next(_n):06d}-IMG",
+                "face_value": "100",
+                "card_image": SimpleUploadedFile("card.png", png, content_type="image/png"),
+                "images": [SimpleUploadedFile("evidence.png", png, content_type="image/png")],
+            },
+            format="multipart",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        return r.json()
+
+    def test_card_image_url_is_authenticated_not_raw_media(self):
+        data = self._submit_with_images()
+        self.assertNotIn("/media/", data["card_image"])
+        self.assertIn("/card-image/", data["card_image"])
+
+    def test_owner_can_view_their_card_image(self):
+        data = self._submit_with_images()
+        path = data["card_image"].split("testserver")[-1]
+        self.client.force_authenticate(self.seller)
+        r = self.client.get(path)
+        self.assertEqual(r.status_code, 200)
+        content = b"".join(r.streaming_content) if r.streaming else r.content
+        self.assertEqual(content, self._real_png())
+
+    def test_a_different_seller_cannot_view_it(self):
+        data = self._submit_with_images()
+        path = data["card_image"].split("testserver")[-1]
+        other = make_user("other_seller")
+        self.client.force_authenticate(other)
+        r = self.client.get(path)
+        self.assertEqual(r.status_code, 403)
+
+    def test_staff_can_view_it(self):
+        data = self._submit_with_images()
+        path = data["card_image"].split("testserver")[-1]
+        self.client.force_authenticate(self.admin)
+        r = self.client.get(path)
+        self.assertEqual(r.status_code, 200)
+
+    def test_gallery_item_has_the_same_access_rule(self):
+        data = self._submit_with_images()
+        gallery_path = data["gallery"][0]["url"].split("testserver")[-1]
+
+        other = make_user("gallery_stranger")
+        self.client.force_authenticate(other)
+        self.assertEqual(self.client.get(gallery_path).status_code, 403)
+
+        self.client.force_authenticate(self.seller)
+        self.assertEqual(self.client.get(gallery_path).status_code, 200)
+
+    def test_disallowed_file_type_in_evidence_is_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.client.force_authenticate(self.seller)
+        r = self.client.post(
+            "/api/giftcards/",
+            {
+                "subcategory": str(self.amazon.pk),
+                "card_code": f"CARD-{next(_n):06d}-BAD",
+                "face_value": "100",
+                "images": [SimpleUploadedFile("evidence.exe", b"MZ" + b"A" * 100, content_type="application/x-msdownload")],
+            },
+            format="multipart",
+        )
+        self.assertEqual(r.status_code, 400)

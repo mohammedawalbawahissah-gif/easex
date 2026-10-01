@@ -1,4 +1,6 @@
+from django.shortcuts import get_object_or_404
 from django.db.models import Prefetch
+from apps.security.media_access import serve_owned_file
 from apps.security.permissions import IsStaffWith2FA
 from apps.security.services import SecurityError
 from apps.security.throttles import SensitiveActionThrottle
@@ -9,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import services
-from .models import GiftCardBrand, GiftCardSubcategory, GiftCardSubmission
+from .models import GiftCardBrand, GiftCardImage, GiftCardSubcategory, GiftCardSubmission
 from .serializers import AdminGiftCardSubmissionSerializer, BrandSerializer, GiftCardSubmissionSerializer
 
 
@@ -27,6 +29,26 @@ class GiftCardSubmissionViewSet(viewsets.ModelViewSet):
         return GiftCardSubmission.objects.filter(user=self.request.user).select_related(
             "transaction", "subcategory__brand"
         ).prefetch_related("gallery")
+
+
+class GiftCardImageView(APIView):
+    """Serves a submission's main card_image — the seller, or a staff reviewer, only."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, submission_id):
+        submission = get_object_or_404(GiftCardSubmission, pk=submission_id)
+        return serve_owned_file(request, file_field=submission.card_image, owner_id=submission.user_id)
+
+
+class GiftCardGalleryImageView(APIView):
+    """Serves one item from a submission's evidence gallery — same access rule as the main image."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, image_id):
+        image = get_object_or_404(GiftCardImage.objects.select_related("submission"), pk=image_id)
+        return serve_owned_file(request, file_field=image.file, owner_id=image.submission.user_id)
 
 
 class AdminGiftCardSubmissionViewSet(viewsets.ReadOnlyModelViewSet):

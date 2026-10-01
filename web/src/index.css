@@ -110,6 +110,18 @@ button {
   color: var(--gold);
 }
 
+/* App icon + wordmark side by side (page header). */
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* App icon centred above the wordmark on the auth pages. */
+.brand-hero-icon {
+  margin: 0 auto 14px;
+}
+
 .page-nav {
   display: flex;
   gap: 20px;
@@ -1013,6 +1025,9 @@ button {
 }
 
 .admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 18px;

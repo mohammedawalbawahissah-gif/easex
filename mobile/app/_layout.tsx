@@ -15,6 +15,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { useNotificationTapNavigation } from '../src/lib/pushNotifications';
 import FloatingSupportWidget from '../src/components/FloatingSupportWidget';
+import HeaderTitle from '../src/components/HeaderTitle';
 
 export {
   ErrorBoundary,
@@ -72,7 +73,10 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="notification/[id]" options={{ title: 'Notification' }} />
+        <Stack.Screen
+          name="notification/[id]"
+          options={{ title: 'Notification', headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle> }}
+        />
       </Stack>
       {/* Same rule as web's AppShell mount: only once signed in, and not
           during session restore (avoids a flash on cold start). */}

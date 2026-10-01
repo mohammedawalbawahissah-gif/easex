@@ -19,6 +19,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "user": "100000/min", "anon": "100000/min", "money_out": "100000/min",
         "money_in": "100000/min", "lookup": "100000/min", "money": "100000/min", "sensitive": "100000/min",
+        "ai_session_start": "100000/min",
     },
 }
 

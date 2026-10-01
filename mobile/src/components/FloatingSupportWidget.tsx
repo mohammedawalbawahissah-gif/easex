@@ -18,6 +18,7 @@ import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../lib/easexClient";
 import { useAuth } from "../context/AuthContext";
 import { getGuestId } from "../lib/guestId";
+import AppIcon from "./AppIcon";
 import { colors, fonts } from "../theme";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -31,7 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
 // on open — they already follow the user across devices. A guest session
 // is scoped to this device's guest_id (see ../lib/guestId) until
 // claimGuest() folds it into an account on login/signup.
-const POLL_MS = 1500;
+const POLL_MS = 4000;
 
 type PanelView = "chat" | "history";
 
@@ -251,19 +252,16 @@ export default function FloatingSupportWidget() {
           <View style={[styles.sheet, { height: sheetHeight, marginBottom: keyboardHeight }]}>
             <View style={styles.header}>
               <View>
-                <Text style={styles.headerTitle}>
-                  {view === "history" ? (
-                    viewingPast ? (
-                      "Past conversation"
-                    ) : (
-                      "History"
-                    )
-                  ) : (
-                    <>
+                {view === "history" ? (
+                  <Text style={styles.headerTitle}>{viewingPast ? "Past conversation" : "History"}</Text>
+                ) : (
+                  <View style={styles.brandRow}>
+                    <AppIcon size={24} />
+                    <Text style={styles.headerTitle}>
                       Ease<Text style={{ color: colors.gold }}>X</Text> Assistant
-                    </>
-                  )}
-                </Text>
+                    </Text>
+                  </View>
+                )}
                 {view === "chat" && session && session.status !== "resolved" && (
                   <Text style={styles.headerSub}>{STATUS_LABEL[session.status] ?? session.status}</Text>
                 )}
@@ -424,6 +422,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerTitle: { fontFamily: fonts.displaySemiBold, fontSize: 16, color: colors.ink },
   headerSub: { fontFamily: fonts.bodyRegular, fontSize: 12, color: colors.inkSoft, marginTop: 2 },
   historyIcon: { fontSize: 16 },

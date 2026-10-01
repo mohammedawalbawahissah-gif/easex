@@ -1,4 +1,6 @@
 from django.contrib.auth import get_user_model
+from django.http import Http404
+from django.shortcuts import get_object_or_404
 from apps.security.permissions import IsStaffWith2FA
 from django.utils import timezone
 from rest_framework import permissions, serializers, viewsets
@@ -8,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.giftcards.models import GiftCardSubmission
 from apps.payments.models import PaymentSettings
+from apps.security.media_access import serve_owned_file
 from apps.transactions.models import Transaction
 from .models import ComplianceFlag, KYCSubmission
 from .serializers import (
@@ -31,6 +34,26 @@ class KYCSubmissionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return KYCSubmission.objects.filter(user=self.request.user)
+
+
+KYC_IMAGE_FIELDS = {"id_document_front", "id_document_back", "selfie"}
+
+
+class KYCImageView(APIView):
+    """
+    Serves one image off a KYCSubmission — the owner, or a staff reviewer,
+    only. These used to be plain ImageField URLs under MEDIA_URL, reachable
+    by anyone who had the link with no login at all; this is what
+    KYCSubmissionSerializer / AdminKYCSubmissionSerializer point to now.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, submission_id, field):
+        if field not in KYC_IMAGE_FIELDS:
+            raise Http404
+        submission = get_object_or_404(KYCSubmission, pk=submission_id)
+        return serve_owned_file(request, file_field=getattr(submission, field), owner_id=submission.user_id)
 
 
 class AdminKYCSubmissionViewSet(viewsets.ReadOnlyModelViewSet):

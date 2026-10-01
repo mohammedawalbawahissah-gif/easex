@@ -6,6 +6,7 @@ import { loginSchema, type LoginFormValues, ApiError, apiErrorMessage } from "@e
 import { useRouter } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import { colors, fonts } from "../theme";
+import BrandLockup from "../components/BrandLockup";
 import PasswordField from "../components/PasswordField";
 import { useKeyboardHeight } from "../lib/useKeyboardHeight";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,7 +67,7 @@ export default function LoginScreen() {
   if (mfaToken) {
     return (
       <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
-        <Text style={styles.brand}>Ease<Text style={{ color: colors.gold }}>X</Text></Text>
+        <BrandLockup />
         <Text style={styles.title}>Two-factor code</Text>
         <Text style={[styles.label, { marginBottom: 12 }]}>
           Enter the 6-digit code from your authenticator app. Lost your phone? Use a recovery code instead.
@@ -85,9 +86,7 @@ export default function LoginScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + 28, paddingBottom: keyboardHeight }]} keyboardShouldPersistTaps="handled">
-      <Text style={styles.brand}>
-        Ease<Text style={{ color: colors.gold }}>X</Text>
-      </Text>
+      <BrandLockup />
       <Text style={styles.title}>Log in</Text>
 
       <Text style={styles.label}>Username</Text>
@@ -129,7 +128,6 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 28, justifyContent: "center", backgroundColor: colors.paper },
-  brand: { fontFamily: fonts.displayBold, fontSize: 20, color: colors.ink, marginBottom: 32 },
   title: { fontFamily: fonts.displaySemiBold, fontSize: 24, color: colors.ink, marginBottom: 24 },
   label: { fontFamily: fonts.bodyMedium, fontSize: 13, color: colors.inkSoft, marginBottom: 6, marginTop: 14 },
   input: {

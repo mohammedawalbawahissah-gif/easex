@@ -4,6 +4,7 @@ import { apiErrorMessage } from "@easex/shared";
 import { easex } from "../lib/easexClient";
 import { useAuth } from "../context/AuthContext";
 import { getGuestId } from "../lib/guestId";
+import AppIcon from "./AppIcon";
 
 /**
  * The `interactive-widget=resizes-content` viewport meta tag (see
@@ -44,7 +45,7 @@ const STATUS_LABEL: Record<string, string> = {
 // user across devices with no extra work here. A guest session is scoped
 // to this browser's guest_id (see ../lib/guestId) until claimGuest() folds
 // it into an account on login/signup.
-const POLL_MS = 1500;
+const POLL_MS = 4000;
 
 function ChatIcon() {
   return (
@@ -109,8 +110,11 @@ function TypingDots() {
 
 function EaseXBrand({ suffix }: { suffix: string }) {
   return (
-    <span>
-      Ease<span className="brand-gold">X</span> {suffix}
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <AppIcon size={24} />
+      <span>
+        Ease<span className="brand-gold">X</span> {suffix}
+      </span>
     </span>
   );
 }

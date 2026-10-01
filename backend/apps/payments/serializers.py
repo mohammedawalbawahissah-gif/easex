@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from apps.wallets.models import Wallet
 
-from .currencies import MOBILE_MONEY_NETWORKS
+from .currencies import MOBILE_MONEY_NETWORKS, PAYMENT_METHODS
 from .models import (
     DepositAddress,
     PayoutDestination,
@@ -38,11 +38,24 @@ class IdempotentMixin(serializers.Serializer):
 
 class LoadWalletSerializer(IdempotentMixin):
     amount = serializers.DecimalField(max_digits=20, decimal_places=8)
-    network = serializers.ChoiceField(choices=list(MOBILE_MONEY_NETWORKS))
-    phone_number = serializers.CharField(max_length=20)
+    network = serializers.ChoiceField(choices=list(PAYMENT_METHODS))
+    # Not needed when network="bank" — the bank-transfer flow just shows
+    # the user EaseX's account details, so no phone number is collected.
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
+    def validate(self, data):
+        if data["network"] != "bank" and not data.get("phone_number"):
+            raise serializers.ValidationError({"phone_number": "Enter a valid Ghana mobile money number."})
+        return data
 
 
 class ScheduleLoadSerializer(LoadWalletSerializer):
+    # Scheduled/recurring loads stay mobile-money only for now — a
+    # "scheduled bank transfer" has nothing to actually trigger at the
+    # scheduled time beyond a reminder, so it isn't wired into the
+    # scheduler (see services.schedule_wallet_load).
+    network = serializers.ChoiceField(choices=list(MOBILE_MONEY_NETWORKS))
+    phone_number = serializers.CharField(max_length=20)
     run_at = serializers.DateTimeField()
 
     def validate_run_at(self, value):
@@ -126,14 +139,28 @@ class ScheduledTransferSerializer(serializers.ModelSerializer):
 class PayoutDestinationSerializer(serializers.ModelSerializer):
     class Meta:
         model = PayoutDestination
-        fields = ["id", "kind", "network", "account_number", "account_name", "created_at"]
+        fields = [
+            "id", "kind", "network", "account_number", "account_name",
+            "bank_name", "bank_branch", "created_at",
+        ]
         read_only_fields = fields
 
 
 class CreateDestinationSerializer(PasswordConfirmMixin):
-    network = serializers.ChoiceField(choices=list(MOBILE_MONEY_NETWORKS))
-    account_number = serializers.CharField(max_length=20)
+    kind = serializers.ChoiceField(choices=PayoutDestination.Kind.choices, default=PayoutDestination.Kind.MOBILE_MONEY)
+    network = serializers.ChoiceField(choices=list(MOBILE_MONEY_NETWORKS), required=False, allow_blank=True)
+    account_number = serializers.CharField(max_length=30)
     account_name = serializers.CharField(max_length=100)
+    bank_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    bank_branch = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    def validate(self, data):
+        if data.get("kind") == PayoutDestination.Kind.BANK:
+            if not data.get("bank_name"):
+                raise serializers.ValidationError({"bank_name": "Enter the bank name."})
+        elif not data.get("network"):
+            raise serializers.ValidationError({"network": "Choose a mobile money network."})
+        return data
 
 
 class PayoutPreferenceSerializer(serializers.ModelSerializer):

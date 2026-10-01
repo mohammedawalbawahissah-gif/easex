@@ -4,6 +4,7 @@ import type { Notification } from "@easex/shared";
 import { useAuth } from "../context/AuthContext";
 import { easex } from "../lib/easexClient";
 import { resolveNotificationPath } from "../lib/notificationLink";
+import AppIcon from "./AppIcon";
 
 const TIER_LABELS: Record<string, string> = {
   unverified: "Unverified",
@@ -104,8 +105,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="page">
       <header className="page-header">
-        <span className="brand">
-          Ease<span className="brand-gold">X</span>
+        <span className="brand brand-lockup">
+          <AppIcon size={32} />
+          <span>
+            Ease<span className="brand-gold">X</span>
+          </span>
         </span>
         <nav className="page-nav">
           <NavLink to="/wallet" className={({ isActive }) => (isActive ? "active" : "")}>
