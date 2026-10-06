@@ -58,6 +58,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Serves STATIC_ROOT directly from gunicorn — no separate static-file host
+    # needed on Railway. Must sit right after SecurityMiddleware.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -86,18 +89,32 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-# Postgres — required for ledger integrity. Configure via env vars in
-# production; these defaults assume the docker-compose service names.
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "easex_db"),
-        "USER": os.environ.get("POSTGRES_USER", "easex_user"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "easex_pass"),
-        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+# Postgres — required for ledger integrity.
+# Railway's managed Postgres plugin provides a single DATABASE_URL, so that
+# takes priority when present. Local Docker Compose has no DATABASE_URL, so
+# it falls back to the discrete POSTGRES_* vars exactly as before — this
+# doesn't change local dev at all.
+import dj_database_url  # noqa: E402
+
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.parse(
+            os.environ["DATABASE_URL"],
+            conn_max_age=600,
+            ssl_require=not DEBUG,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "easex_db"),
+            "USER": os.environ.get("POSTGRES_USER", "easex_user"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "easex_pass"),
+            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        }
+    }
 
 AUTH_USER_MODEL = "users.User"
 
@@ -355,8 +372,58 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# --- Media storage (gift card images, KYC documents) ------------------------
+# Cloudflare R2 (S3-compatible) when configured — required in production,
+# since Railway's filesystem doesn't persist across redeploys. Falls back to
+# local disk when R2 isn't configured, so docker-compose dev is unaffected.
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "")
+R2_ENDPOINT_URL = os.environ.get("R2_ENDPOINT_URL", "")  # e.g. https://<account_id>.r2.cloudflarestorage.com
+# Optional: a public R2.dev URL or custom domain you've mapped to the bucket,
+# used to build the links users/admins actually see for uploaded files.
+R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "")
+
+_R2_CONFIGURED = all([R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_ENDPOINT_URL])
+
+if not _R2_CONFIGURED and not DEBUG:
+    raise ImproperlyConfigured(
+        "R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME / R2_ENDPOINT_URL must all be set "
+        "when DJANGO_DEBUG=False — gift card images and KYC documents can't live on Railway's local "
+        "disk, which doesn't persist across redeploys."
+    )
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+# A third-party package occasionally references a static file (e.g. a
+# source map) that doesn't exist. Strict mode would fail the whole
+# collectstatic/deploy over that; False just skips rewriting that one
+# reference, which is the common, low-risk way to handle it.
+WHITENOISE_MANIFEST_STRICT = False
+
+if _R2_CONFIGURED:
+    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = R2_SECRET_ACCESS_KEY
+    AWS_STORAGE_BUCKET_NAME = R2_BUCKET_NAME
+    AWS_S3_ENDPOINT_URL = R2_ENDPOINT_URL
+    AWS_S3_REGION_NAME = "auto"
+    AWS_S3_ADDRESSING_STYLE = "virtual"
+    AWS_DEFAULT_ACL = None  # R2 buckets manage public access at the bucket level, not per-object ACLs
+    AWS_QUERYSTRING_AUTH = False  # serve plain URLs; set True instead if the bucket must stay private
+    if R2_PUBLIC_BASE_URL:
+        AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_BASE_URL.replace("https://", "").replace("http://", "").rstrip("/")
+
+    STORAGES["default"] = {"BACKEND": "storages.backends.s3.S3Storage"}
+    MEDIA_URL = (R2_PUBLIC_BASE_URL.rstrip("/") + "/") if R2_PUBLIC_BASE_URL else f"{R2_ENDPOINT_URL}/{R2_BUCKET_NAME}/"
+else:
+    STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

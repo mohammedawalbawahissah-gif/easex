@@ -11,4 +11,7 @@ pywebpush==2.5.0
 cryptography>=43
 pyotp==2.9.0
 requests==2.32.3
-django-anymail[sendgrid,amazon-ses,postmark,mailgun]==13.0
+django-anymail[sendgrid,amazon-ses,postmark,mailgun,resend]==13.0
+dj-database-url==2.3.0
+django-storages[s3]==1.14.4
+whitenoise==6.8.2

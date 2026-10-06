@@ -16,4 +16,10 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Default command — used by the Railway "web" service as-is. The
+# celery_worker and celery_beat Railway services override this entirely
+# with their own Start Command (see RAILWAY_DEPLOY.md), so migrate/
+# collectstatic only ever run once, from the web service.
+CMD python manage.py migrate --noinput && \
+    python manage.py collectstatic --noinput && \
+    gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
